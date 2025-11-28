@@ -8,6 +8,9 @@ services:
       POSTGRES_PASSWORD: postgres
     ports:
       - "5433:5432"  # 使用不同端口避免与开发环境冲突
+    # 加入 Jenkins Agent 所在的网络，允许容器间直接通信
+    networks:
+      - jenkinsdeploy_default
     # 使用 tmpfs（内存文件系统），测试后自动清理，不持久化数据
     tmpfs:
       - /var/lib/postgresql/data
@@ -16,4 +19,8 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+networks:
+  jenkinsdeploy_default:
+    external: true
 

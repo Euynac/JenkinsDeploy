@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   agent-dotnet-test:
     image: jenkins-agent-dotnet:2.0
@@ -34,10 +32,15 @@ services:
       - jenkins-agent-dotnet-test-nuget:/home/jenkins/.nuget
 
       # 挂载测试项目（老师提供的项目）
-      - ./examples:/test-projects:ro
+      - ../examples:/test-projects:ro
 
       # Docker-outside-of-Docker: 挂载宿主机 Docker socket
       - /var/run/docker.sock:/var/run/docker.sock
+
+    # 添加 Docker socket 的组 ID，使 jenkins 用户能访问 Docker
+    # 注意：这个 GID 需要与宿主机 /var/run/docker.sock 的组 ID 匹配
+    group_add:
+      - "1001"  # Docker socket GID (可能因系统而异，使用 stat -c '%g' /var/run/docker.sock 查看)
 
     networks:
       - jenkinsdeploy_default

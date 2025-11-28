@@ -8,14 +8,16 @@ if [ -n "$DOCKER_SOCK_GID" ]; then
     echo "检测到 Docker socket GID: $DOCKER_SOCK_GID"
 
     # 检查是否已存在该 GID 的组
-    if ! getent group $DOCKER_SOCK_GID > /dev/null; then
+    if ! getent group $DOCKER_SOCK_GID > /dev/null 2>&1; then
         echo "创建 docker-host 组 (GID: $DOCKER_SOCK_GID)"
-        groupadd -g $DOCKER_SOCK_GID docker-host
+        groupadd -g $DOCKER_SOCK_GID docker-host 2>/dev/null || echo "组已存在，跳过创建"
     fi
 
-    # 将 jenkins 用户添加到该组
-    echo "将 jenkins 用户添加到 GID $DOCKER_SOCK_GID 组"
-    usermod -aG $DOCKER_SOCK_GID jenkins
+    # 将 jenkins 用户添加到该组（如果还没有）
+    if ! groups jenkins | grep -q "\b$DOCKER_SOCK_GID\b"; then
+        echo "将 jenkins 用户添加到 GID $DOCKER_SOCK_GID 组"
+        usermod -aG $DOCKER_SOCK_GID jenkins 2>/dev/null || echo "用户已在组中"
+    fi
 
     echo "✅ Docker 权限配置完成"
 else

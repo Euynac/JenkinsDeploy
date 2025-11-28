@@ -28,6 +28,10 @@ RUN dotnet --version && \
 RUN mkdir -p /home/jenkins/.nuget/NuGet && \
     chown -R jenkins:jenkins /home/jenkins/.nuget
 
+# 创建 docker 组（GID 1001），消除 groups 命令的警告
+# 注意：GID 必须与宿主机 docker.sock 的 GID 匹配
+RUN groupadd -g 1001 docker 2>/dev/null || true
+
 # 切换回 jenkins 用户
 USER jenkins
 

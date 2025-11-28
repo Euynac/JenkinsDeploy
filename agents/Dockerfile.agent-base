@@ -18,6 +18,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-pip python3-venv \
     && rm -rf /var/lib/apt/lists/*
 
+# 安装 PostgreSQL 客户端库（psycopg2 需要）
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq-dev gcc python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 # 安装网络工具（E2E 测试需要）
 RUN apt-get update && apt-get install -y --no-install-recommends \
     lsof netcat-openbsd \
