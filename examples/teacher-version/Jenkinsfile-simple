@@ -1,0 +1,214 @@
+pipeline {
+    agent {
+        label 'dotnet'  // 使用 dotnet 标签的 Agent
+    }
+
+    environment {
+        // 项目配置
+        PROJECT_NAME = 'TodoApp-backend'
+        PROJECT_PATH = 'todoapp-backend-api-main'
+        TARGET_FRAMEWORK = 'net8.0'
+
+        // 构建输出目录
+        BUILD_DIR = "${WORKSPACE}/${PROJECT_PATH}"
+        PUBLISH_DIR = "${WORKSPACE}/publish"
+
+        // .NET 配置
+        DOTNET_CLI_TELEMETRY_OPTOUT = '1'
+        DOTNET_SKIP_FIRST_TIME_EXPERIENCE = '1'
+    }
+
+    stages {
+        // 阶段 1: 环境检查
+        stage('Environment Check') {
+            steps {
+                script {
+                    echo "=========================================="
+                    echo "检查构建环境..."
+                    echo "=========================================="
+
+                    sh """
+                        echo "当前目录: \$(pwd)"
+                        echo "工作空间: ${WORKSPACE}"
+                        echo ""
+                        echo ".NET SDK 版本:"
+                        dotnet --version
+                        dotnet --list-sdks
+                        echo ""
+                        echo "Git 版本:"
+                        git --version
+                        echo ""
+                        echo "环境变量:"
+                        echo "  NODE_NAME: ${NODE_NAME}"
+                        echo "  BUILD_NUMBER: ${BUILD_NUMBER}"
+                    """
+                }
+            }
+        }
+
+        // 阶段 2: 准备环境
+        stage('Setup') {
+            steps {
+                script {
+                    echo "=========================================="
+                    echo "准备构建环境..."
+                    echo "=========================================="
+
+                    sh """
+                        # 清理之前的构建产物
+                        rm -rf ${PUBLISH_DIR}
+                        rm -rf ${WORKSPACE}/test-results
+                        mkdir -p ${PUBLISH_DIR}
+                        mkdir -p ${WORKSPACE}/test-results
+
+                        # 检查项目目录
+                        if [ -d "${BUILD_DIR}" ]; then
+                            echo "✅ 项目目录存在: ${BUILD_DIR}"
+                            ls -la ${BUILD_DIR}
+                        else
+                            echo "❌ 项目目录不存在: ${BUILD_DIR}"
+                            echo "工作空间内容:"
+                            ls -la ${WORKSPACE}
+                            exit 1
+                        fi
+                    """
+                }
+            }
+        }
+
+        // 阶段 3: 还原依赖
+        stage('Restore') {
+            steps {
+                script {
+                    echo "=========================================="
+                    echo "还原 NuGet 包依赖..."
+                    echo "=========================================="
+                }
+
+                dir("${BUILD_DIR}") {
+                    sh """
+                        dotnet restore --verbosity normal
+                    """
+                }
+            }
+        }
+
+        // 阶段 4: 构建项目
+        stage('Build') {
+            steps {
+                script {
+                    echo "=========================================="
+                    echo "构建项目（包括测试项目）..."
+                    echo "=========================================="
+                }
+
+                dir("${BUILD_DIR}") {
+                    sh """
+                        dotnet build --configuration Release --no-restore --verbosity normal
+                    """
+                }
+            }
+        }
+
+        // 阶段 5: 运行单元测试
+        stage('Unit Test') {
+            steps {
+                dir("${BUILD_DIR}") {
+                    script {
+                        def testProj = "TodoApp-backend.Tests/TodoApp-backend.Tests.csproj"
+
+                        sh """
+                            if [ ! -f "${testProj}" ]; then
+                                echo "❌ 测试项目不存在: ${testProj}"
+                                exit 1
+                            fi
+
+                            echo "✅ 测试项目存在"
+                            echo ""
+                            echo "=========================================="
+                            echo "运行单元测试..."
+                            echo "=========================================="
+
+                            mkdir -p ${WORKSPACE}/test-results
+                            mkdir -p ${WORKSPACE}/test-results/coverage
+
+                            dotnet test "${testProj}" \\
+                                --configuration Release \\
+                                --no-build \\
+                                --verbosity normal \\
+                                --results-directory "${WORKSPACE}/test-results" \\
+                                --logger "trx;LogFileName=test-results.trx" \\
+                                --logger "console;verbosity=detailed" \\
+                                --collect:"XPlat Code Coverage" \\
+                                -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura \\
+                                -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Exclude="[*.Tests]*"
+
+                            echo ""
+                            echo "=========================================="
+                            echo "测试完成！"
+                            echo "=========================================="
+
+                            # 查找并复制覆盖率文件
+                            COBERTURA_FILE=\$(find ${WORKSPACE}/test-results -name "coverage.cobertura.xml" -type f | head -1)
+                            if [ -n "\$COBERTURA_FILE" ]; then
+                                echo "找到覆盖率文件: \$COBERTURA_FILE"
+                                cp "\$COBERTURA_FILE" "${WORKSPACE}/test-results/coverage/coverage.cobertura.xml"
+                                ls -lh "${WORKSPACE}/test-results/coverage/coverage.cobertura.xml"
+                            else
+                                echo "⚠️  未找到覆盖率文件"
+                            fi
+                        """
+                    }
+                }
+            }
+
+            post {
+                always {
+                    // 发布测试结果
+                    junit testResults: 'test-results/**/*.trx',
+                          allowEmptyResults: false,
+                          keepLongStdio: true
+
+                    // 归档测试产物
+                    archiveArtifacts artifacts: 'test-results/**/*.trx, test-results/**/*.xml',
+                                     allowEmptyArchive: true
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            script {
+                echo "=========================================="
+                echo "✅ 构建和测试全部成功！"
+                echo "=========================================="
+                echo "项目: ${PROJECT_NAME}"
+                echo "构建号: ${BUILD_NUMBER}"
+                echo "Agent: ${NODE_NAME}"
+                echo "工作目录: ${WORKSPACE}"
+                echo "=========================================="
+            }
+        }
+
+        failure {
+            script {
+                echo "=========================================="
+                echo "❌ 构建或测试失败！"
+                echo "=========================================="
+                echo "项目: ${PROJECT_NAME}"
+                echo "构建号: ${BUILD_NUMBER}"
+                echo "Agent: ${NODE_NAME}"
+                echo "请检查控制台输出获取详细信息"
+                echo "=========================================="
+            }
+        }
+
+        always {
+            script {
+                echo "构建流程完成"
+                echo "测试结果和产物已归档"
+            }
+        }
+    }
+}

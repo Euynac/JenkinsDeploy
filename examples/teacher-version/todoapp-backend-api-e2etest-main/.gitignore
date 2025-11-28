@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+*.bak
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv
+# 注意：在 CI 环境中，venv 目录通常应该被忽略
+# 但如果需要缓存以提高构建速度，可以考虑在 Jenkins 中配置缓存策略
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Test results
+test-results/
+*.html
+*.xml
+*.trx
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment variables
+.env
+.env.local
+
+# Allure
+allure-results/
+allure-report/
+
+# OS
+.DS_Store
+Thumbs.db
+

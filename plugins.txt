@@ -1,0 +1,270 @@
+# ==========================================
+# Jenkins Master 核心插件列表（架构师审核版本）
+# 适用于内网离线部署 - 多技术栈CI/CD场景
+# 总计：128个插件（含依赖）
+# ==========================================
+
+# ---------- 核心流水线插件（Pipeline Core） ----------
+workflow-aggregator:608.v67378e9d3db_1                # Pipeline全家桶（必装）
+workflow-api:1384.vdc05a_48f535f                      # Pipeline API核心
+workflow-basic-steps:1098.v808b_fd7f8cf4              # Pipeline基础步骤
+workflow-cps:4218.vff679a_5c0f3a_                     # Pipeline脚本支持
+workflow-durable-task-step:1464.v2d3f5c68f84c         # 持久化任务步骤
+workflow-job:1559.va_a_533730b_ea_d                   # Pipeline Job类型
+workflow-multibranch:821.vc3b_4ea_780798              # 多分支流水线
+workflow-scm-step:466.va_d69e602552b_                 # SCM检出步骤
+workflow-step-api:710.v3e456cc85233                   # Pipeline步骤API
+workflow-support:1004.veee3a_d67cdb_9                 # Pipeline支持库
+
+# ---------- Pipeline模型和扩展 ----------
+pipeline-model-api:2.2277.v00573e73ddf1               # 声明式流水线API
+pipeline-model-definition:2.2277.v00573e73ddf1        # 声明式流水线定义
+pipeline-model-extensions:2.2277.v00573e73ddf1        # 声明式流水线扩展
+pipeline-stage-step:322.vecffa_99f371c                # Stage步骤
+pipeline-stage-tags-metadata:2.2277.v00573e73ddf1     # Stage标签元数据
+pipeline-stage-view:2.38                              # 流水线阶段视图
+pipeline-graph-view:661.v6003f4542123                 # 流水线图形视图
+pipeline-graph-analysis:245.v88f03631a_b_21           # 流水线图分析
+pipeline-rest-api:2.38                                # Pipeline REST API
+pipeline-build-step:571.v08a_fffd4b_0ce               # 构建步骤
+pipeline-input-step:540.v14b_100d754dd                # 输入步骤（人工确认）
+pipeline-milestone-step:138.v78ca_76831a_43           # 里程碑步骤
+pipeline-groovy-lib:787.ve2fef0efdca_6                # Groovy共享库
+pipeline-github-lib:65.v203688e7727e                  # GitHub集成库
+
+# ---------- Blue Ocean 现代UI套件 ----------
+blueocean:1.27.24                                     # Blue Ocean主插件
+blueocean-commons:1.27.24                             # 公共组件
+blueocean-config:1.27.24                              # 配置模块
+blueocean-core-js:1.27.24                             # JavaScript核心
+blueocean-dashboard:1.27.24                           # 仪表盘
+blueocean-display-url:2.4.4                           # URL显示
+blueocean-events:1.27.24                              # 事件系统
+blueocean-i18n:1.27.24                                # 国际化
+blueocean-jwt:1.27.24                                 # JWT认证
+blueocean-personalization:1.27.24                     # 个性化设置
+blueocean-pipeline-api-impl:1.27.24                   # Pipeline API实现
+blueocean-pipeline-editor:1.27.24                     # 可视化流水线编辑器
+blueocean-pipeline-scm-api:1.27.24                    # SCM API
+blueocean-rest:1.27.24                                # REST API
+blueocean-rest-impl:1.27.24                           # REST实现
+blueocean-web:1.27.24                                 # Web界面
+blueocean-git-pipeline:1.27.24                        # Git流水线支持
+blueocean-github-pipeline:1.27.24                     # GitHub流水线支持
+blueocean-bitbucket-pipeline:1.27.24                  # Bitbucket流水线支持
+jenkins-design-language:1.27.24                       # Jenkins设计语言
+
+# ---------- SCM源码管理集成 ----------
+# Git相关
+git:5.8.0                                             # Git插件（核心）
+git-client:6.4.0                                      # Git客户端
+scm-api:724.v7d839074eb_5c                            # SCM统一API
+branch-api:2.1268.v044a_87612da_8                     # 分支API
+
+# GitLab集成
+gitlab-plugin:1.9.10                                  # GitLab集成插件
+
+# GitHub集成
+github:1.45.0                                         # GitHub插件
+github-api:1.330-492.v3941a_032db_2a_                 # GitHub API
+github-branch-source:1917.v9ee8a_39b_3d0d             # GitHub多分支源
+
+# Bitbucket集成
+cloudbees-bitbucket-branch-source:937.2.1             # Bitbucket分支源
+
+# ---------- 凭证管理（Credentials） ----------
+credentials:1447.v4cb_b_539b_5321                     # 凭证管理核心
+credentials-binding:702.vfe613e537e88                 # 凭证绑定
+plain-credentials:199.v9f8e1f741799                   # 明文凭证
+ssh-credentials:361.vb_f6760818e8c                    # SSH凭证
+authentication-tokens:1.144.v5ff4a_5ec5c33            # 认证令牌
+
+# ---------- Agent节点管理 ----------
+ssh-slaves:3.1085.vc64d040efa_85                      # SSH Agent连接
+durable-task:635.v3733cef34b_5e                       # 持久化任务
+
+# ---------- 构建工具插件 ----------
+msbuild:1.37                                          # MSBuild（.NET构建）
+gradle:2.16.1149.v711b_998b_0532                      # Gradle（Java构建）
+ant:520.vd082ecfb_16a_9                               # Ant（经典Java构建）
+matrix-project:870.v9db_fcfc2f45b_                    # 矩阵项目（多配置构建）
+
+# ---------- 代码质量分析 ----------
+sonar:2.18                                            # SonarQube扫描器
+
+# ---------- 测试和报告 ----------
+junit:1369.v15da_00283f06                             # JUnit测试报告
+htmlpublisher:427                                     # HTML报告发布
+checks-api:373.vfe7645102093                          # 检查API
+
+# ---------- 邮件通知 ----------
+email-ext:1933.v45cec755423f                          # 邮件扩展（高级通知）
+mailer:522.va_995fa_cfb_8b_d                          # 基础邮件插件
+jakarta-activation-api:2.1.4-1                        # Jakarta邮件激活API
+jakarta-mail-api:2.1.5-1                              # Jakarta邮件API
+javax-activation-api:1.2.0-8                          # Javax邮件激活API
+javax-mail-api:1.6.2-11                               # Javax邮件API
+
+# ---------- 权限管理 ----------
+matrix-auth:3.2.8                                     # 矩阵授权策略
+ldap:793.v754d6b_41b_ea_4                             # LDAP认证
+
+# ---------- UI增强和主题 ----------
+dark-theme:574.va_19f05d54df5                         # 暗黑主题
+theme-manager:327.v780d7096ec29                       # 主题管理器
+bootstrap5-api:5.3.8-895.v4d0d8e47fea_d               # Bootstrap 5 UI框架
+font-awesome-api:7.1.0-882.v1dfb_771e3278             # Font Awesome图标
+ionicons-api:94.vcc3065403257                         # Ionicons图标
+echarts-api:6.0.0-1165.vd1283a_3e37d4                 # ECharts图表库
+jquery3-api:3.7.1-619.vdb_10e002501a_                 # jQuery 3
+prism-api:1.30.0-630.va_e19d17f83b_0                  # Prism代码高亮
+
+# ---------- 实用工具插件 ----------
+cloudbees-folder:6.1073.va_7888eb_dd514               # 文件夹组织
+favorite:2.253.v9b_413168133b_                        # 收藏夹
+build-timeout:1.38                                    # 构建超时
+timestamper:1.30                                      # 时间戳
+ws-cleanup:0.49                                       # 工作空间清理
+resource-disposer:0.25                                # 资源清理
+token-macro:477.vd4f0dc3cb_cf1                        # 令牌宏替换
+
+# ---------- 安全插件 ----------
+antisamy-markup-formatter:173.v680e3a_b_69ff3         # XSS防护（HTML清理）
+script-security:1385.v7d2d9ec4d909                    # 脚本安全沙箱
+
+# ---------- 本地化和国际化 ----------
+localization-support:1.41.v186a_c1569458              # 本地化支持
+localization-zh-cn:371.v23851f835d6b_                 # 中文本地化
+
+# ---------- 监控和度量 ----------
+metrics:4.2.37-489.vb_6db_69b_ce753                   # 指标监控
+
+# ---------- 实时通信 ----------
+sse-gateway:1.28                                      # SSE网关（实时事件）
+pubsub-light:1.19                                     # 发布订阅（轻量级）
+
+# ---------- URL和显示工具 ----------
+display-url-api:2.217.va_6b_de84cc74b_                # URL显示API
+
+# ---------- 核心依赖库（API Libraries） ----------
+# HTTP客户端
+apache-httpcomponents-client-4-api:4.5.14-269.vfa_2321039a_83   # Apache HTTP 4
+apache-httpcomponents-client-5-api:5.5-170.v023de017ccd7        # Apache HTTP 5
+okhttp-api:4.12.0-195.vc02552c04ffd                             # OkHttp客户端
+
+# JSON处理
+jackson2-api:2.20.1-423.v13951f6b_6532                # Jackson JSON库
+gson-api:2.13.2-173.va_a_092315913c                   # Gson JSON库
+json-api:20250517-173.v596efb_962a_31                 # JSON API
+json-path-api:2.10.0-202.va_9cc16c1e476               # JSON Path查询
+
+# XML处理
+jakarta-xml-bind-api:4.0.6-10.v9b_7e1d1fc40b_         # Jakarta XML绑定
+jaxb:2.3.9-133.vb_ec76a_73f706                        # JAXB XML处理
+
+# 加密和安全
+bouncycastle-api:2.30.1.82-277.v70ca_0b_877184        # Bouncy Castle加密库
+eddsa-api:0.3.0.1-19.vc432d923e5ee                    # EdDSA签名算法
+jjwt-api:0.11.5-120.v0268cf544b_89                    # JWT令牌处理
+
+# SSH通信
+trilead-api:2.209.v0e69b_c43c245                      # Trilead SSH
+mina-sshd-api-common:2.16.0-167.va_269f38cc024        # Apache MINA SSH通用
+mina-sshd-api-core:2.16.0-167.va_269f38cc024          # Apache MINA SSH核心
+
+# 工具类库
+commons-lang3-api:3.19.0-104.v12125f33a_255           # Apache Commons Lang3
+commons-text-api:1.14.0-194.v804a_dc3a_1b_d8          # Apache Commons Text
+commons-collections4-api:4.5.0-8.va_d5448ef9011       # Apache Commons Collections
+caffeine-api:3.2.3-194.v31a_b_f7a_b_5a_81             # Caffeine缓存
+asm-api:9.9-185.va_6c6b_3348b_c3                      # ASM字节码操作
+
+# 日期时间
+joda-time-api:2.14.0-149.v1c3ce991d1b_9               # Joda时间库
+
+# Web框架
+jersey3-api:3.1.11-4.v77818819c2e1                    # Jersey 3 JAX-RS框架
+
+# HTML解析
+jsoup:1.21.2-66.v6ea_38164b_8a_2                      # jsoup HTML解析器
+
+# URI模板
+handy-uri-templates-2-api:2.1.8-36.v85e4cb_234a_13    # URI模板处理
+
+# YAML处理
+snakeyaml-api:2.5-143.v93b_c004f89de                  # SnakeYAML解析器
+
+# ---------- Jenkins核心依赖 ----------
+instance-identity:203.v15e81a_1b_7a_38                # 实例身份
+structs:362.va_b_695ef4fdf9                           # 结构化数据
+plugin-util-api:6.1192.v30fe6e2837ff                  # 插件工具API
+variant:70.va_d9f17f859e0                             # 变体支持
+
+# ---------- 额外补充插件（企业场景推荐） ----------
+# NodeJS支持（前端构建必需）
+nodejs:latest                                         # NodeJS插件（支持npm/yarn/pnpm构建）
+
+# 制品仓库集成
+nexus-artifact-uploader:latest                        # Nexus制品上传器
+
+# 配置即代码（强烈推荐）
+configuration-as-code:latest                          # JCasC配置即代码（自动化配置）
+
+# Job动态管理
+job-dsl:latest                                        # Job DSL（通过代码创建任务）
+
+# 日志和输出增强
+ansicolor:latest                                      # ANSI颜色输出（美化控制台日志）
+
+# 构建触发和参数
+parameterized-trigger:latest                          # 参数化触发（触发其他Job）
+
+# 制品操作
+copyartifact:latest                                   # 复制制品（在Job间传递文件）
+
+# 构建信息设置
+build-name-setter:latest                              # 构建名称设置（自定义构建显示名）
+description-setter:latest                             # 描述设置（动态设置构建描述）
+
+# 监控和统计
+monitoring:latest                                     # 系统监控（JVM/线程/内存监控）
+disk-usage:latest                                     # 磁盘使用统计（监控磁盘空间）
+
+# 日志解析
+log-parser:latest                                     # 日志解析器（解析构建日志错误）
+
+# Docker支持（容器化构建）
+docker-plugin:latest                                  # Docker插件
+docker-workflow:latest                                # Docker流水线步骤
+
+# Dashboard增强
+dashboard-view:latest                                 # 仪表盘视图（自定义Dashboard）
+build-monitor-plugin:latest                           # 构建监控插件（大屏展示）
+
+# 高级权限管理
+role-strategy:latest                                  # 基于角色的授权策略（细粒度权限）
+
+# Webhook集成
+generic-webhook-trigger:latest                        # Generic Webhook触发器
+
+# Maven支持（Java项目）
+maven-plugin:latest                                   # Maven集成插件
+
+# Artifactory支持（可选制品仓库）
+artifactory:latest                                    # Artifactory集成
+
+# 多语言支持
+locale:latest                                         # Locale插件（语言切换）
+
+# ==========================================
+# 插件安装说明
+# ==========================================
+# 1. 所有插件版本号由架构师指定，确保环境一致性
+# 2. 构建时自动下载并安装所有插件及其依赖
+# 3. 插件总数：128个（核心）+ 23个（额外补充）= 151个
+# 4. 预计下载时间：20-35分钟（取决于网络）
+# 5. 镜像体积：约2.5-5GB
+#
+# 如需添加更多插件，请按格式添加：
+# plugin-name:version    # 插件描述
+# ==========================================

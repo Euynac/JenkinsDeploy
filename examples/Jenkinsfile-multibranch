@@ -1,0 +1,266 @@
+// ==========================================
+// 多分支流水线示例
+// 支持 develop / release / master 分支不同策略
+// ==========================================
+
+pipeline {
+    agent { label 'dotnet' }
+
+    environment {
+        PROJECT_NAME = 'microservice-demo'
+        NEXUS_URL = 'http://nexus.internal.com'
+        SONAR_URL = 'http://sonarqube.internal.com'
+
+        // 根据分支设置环境
+        BUILD_ENV = "${env.BRANCH_NAME == 'master' ? 'production' : (env.BRANCH_NAME == 'release' ? 'test' : 'development')}"
+    }
+
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '30'))
+        timeout(time: 30, unit: 'MINUTES')
+        timestamps()
+        ansiColor('xterm')
+
+        // 禁止并发构建同一分支
+        disableConcurrentBuilds()
+    }
+
+    stages {
+        stage('初始化') {
+            steps {
+                script {
+                    echo "=========================================="
+                    echo "项目: ${PROJECT_NAME}"
+                    echo "分支: ${BRANCH_NAME}"
+                    echo "环境: ${BUILD_ENV}"
+                    echo "构建号: ${BUILD_NUMBER}"
+                    echo "=========================================="
+                }
+
+                cleanWs()
+                checkout scm
+            }
+        }
+
+        stage('依赖恢复') {
+            steps {
+                sh 'dotnet restore'
+            }
+        }
+
+        stage('代码质量检查') {
+            // 仅在 develop 和 release 分支执行
+            when {
+                anyOf {
+                    branch 'develop'
+                    branch 'release'
+                }
+            }
+            steps {
+                echo '执行 SonarQube 代码质量分析...'
+                withSonarQubeEnv('SonarQube') {
+                    sh """
+                        dotnet sonarscanner begin \
+                            /k:"${PROJECT_NAME}" \
+                            /d:sonar.host.url="${SONAR_URL}" \
+                            /d:sonar.branch.name="${BRANCH_NAME}"
+
+                        dotnet build --configuration Release
+
+                        dotnet sonarscanner end
+                    """
+                }
+
+                // 等待质量门检查
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+
+        stage('编译') {
+            steps {
+                script {
+                    def buildConfig = (BUILD_ENV == 'production') ? 'Release' : 'Debug'
+                    echo "编译配置: ${buildConfig}"
+                    sh "dotnet build --configuration ${buildConfig} --no-restore"
+                }
+            }
+        }
+
+        stage('单元测试') {
+            steps {
+                sh '''
+                    dotnet test \
+                        --configuration Release \
+                        --no-build \
+                        --logger "trx;LogFileName=test-results.trx" \
+                        --collect:"XPlat Code Coverage"
+                '''
+            }
+            post {
+                always {
+                    mstest testResultsFile: '**/test-results.trx'
+                }
+            }
+        }
+
+        stage('打包') {
+            steps {
+                script {
+                    echo "打包 ${BUILD_ENV} 环境..."
+                    sh """
+                        dotnet publish \
+                            --configuration Release \
+                            --output ./publish \
+                            --no-build
+                    """
+
+                    // 生成版本号
+                    def version = "${env.BRANCH_NAME}-${BUILD_NUMBER}"
+                    sh "cd publish && zip -r ../${PROJECT_NAME}-${version}.zip ."
+                }
+            }
+        }
+
+        stage('制品上传') {
+            steps {
+                archiveArtifacts artifacts: '*.zip', fingerprint: true
+            }
+        }
+
+        stage('部署到测试环境') {
+            when {
+                branch 'develop'
+            }
+            steps {
+                echo '部署到开发测试环境...'
+                // 添加部署逻辑
+                sh 'echo "部署到 DEV 环境"'
+            }
+        }
+
+        stage('部署到预生产') {
+            when {
+                branch 'release'
+            }
+            steps {
+                echo '部署到预生产环境...'
+                sh 'echo "部署到 TEST 环境"'
+            }
+        }
+
+        stage('生产环境部署') {
+            when {
+                branch 'master'
+            }
+            steps {
+                script {
+                    // 生产环境需要人工确认
+                    timeout(time: 1, unit: 'HOURS') {
+                        input message: '确认部署到生产环境?',
+                              ok: '确认部署',
+                              submitter: 'admin,deploy-team'
+                    }
+
+                    echo '开始部署到生产环境...'
+                    sh 'echo "部署到 PROD 环境"'
+                }
+            }
+        }
+
+        stage('健康检查') {
+            when {
+                anyOf {
+                    branch 'develop'
+                    branch 'release'
+                    branch 'master'
+                }
+            }
+            steps {
+                script {
+                    echo '执行健康检查...'
+
+                    // 根据环境选择健康检查 URL
+                    def healthUrl = ''
+                    if (BRANCH_NAME == 'master') {
+                        healthUrl = 'http://prod.internal.com/health'
+                    } else if (BRANCH_NAME == 'release') {
+                        healthUrl = 'http://test.internal.com/health'
+                    } else {
+                        healthUrl = 'http://dev.internal.com/health'
+                    }
+
+                    // 等待服务启动并检查健康状态
+                    retry(5) {
+                        sleep 10
+                        sh "curl -f ${healthUrl} || exit 1"
+                    }
+
+                    echo '✅ 健康检查通过'
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            script {
+                echo '✅ 流水线执行成功！'
+
+                // 根据分支发送不同通知
+                def notifyMessage = """
+                    ### 构建成功 ✅
+                    **项目**: ${PROJECT_NAME}
+                    **分支**: ${BRANCH_NAME}
+                    **环境**: ${BUILD_ENV}
+                    **构建号**: ${BUILD_NUMBER}
+                    **提交**: ${env.GIT_COMMIT?.take(7)}
+                """
+
+                if (BRANCH_NAME == 'master') {
+                    // 生产部署成功,发送重要通知
+                    echo '发送生产部署成功通知...'
+                    // dingtalk(robot: 'prod-alerts', text: [notifyMessage])
+                    // emailext(to: 'team-lead@example.com', subject: "生产部署成功", body: notifyMessage)
+                } else {
+                    // 普通通知
+                    echo '发送构建成功通知...'
+                    // dingtalk(robot: 'dev-bot', text: [notifyMessage])
+                }
+            }
+        }
+
+        failure {
+            script {
+                echo '❌ 流水线执行失败！'
+
+                def errorMessage = """
+                    ### 构建失败 ❌
+                    **项目**: ${PROJECT_NAME}
+                    **分支**: ${BRANCH_NAME}
+                    **构建号**: ${BUILD_NUMBER}
+                    **日志**: ${BUILD_URL}console
+                """
+
+                // 发送失败通知
+                // dingtalk(robot: 'jenkins-bot', type: 'MARKDOWN', text: [errorMessage])
+                // emailext(to: 'dev-team@example.com', subject: "构建失败: ${PROJECT_NAME}", body: errorMessage)
+            }
+        }
+
+        unstable {
+            echo '⚠️  构建不稳定 (测试失败或质量门未通过)'
+        }
+
+        always {
+            // 清理工作空间
+            cleanWs(
+                cleanWhenNotBuilt: false,
+                deleteDirs: true,
+                disableDeferredWipeout: true,
+                notFailBuild: true
+            )
+        }
+    }
+}

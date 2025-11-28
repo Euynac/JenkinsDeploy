@@ -1,0 +1,19 @@
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: todoapp-postgres-test
+    environment:
+      POSTGRES_DB: todoapp_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"  # 使用不同端口避免与开发环境冲突
+    # 使用 tmpfs（内存文件系统），测试后自动清理，不持久化数据
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+

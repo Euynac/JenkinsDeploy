@@ -1,0 +1,30 @@
+# Jenkins 数据目录
+jenkins_home/
+
+# 镜像文件（体积大，不提交到仓库）
+*.tar
+*.tar.gz
+*.md5
+
+# 环境变量文件
+.env
+
+# 日志文件
+*.log
+
+# 临时文件
+*.tmp
+*.bak
+*~
+
+# IDE 配置
+.idea/
+.vscode/
+*.iml
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+Desktop.ini

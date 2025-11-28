@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  agent-dotnet-test:
+    image: jenkins-agent-dotnet:1.2
+    container_name: jenkins-agent-dotnet-test
+    restart: unless-stopped
+
+    environment:
+      # Jenkins Master 配置
+      JENKINS_URL: "http://jenkins-master-test:8080"
+      JENKINS_AGENT_NAME: "agent-dotnet-8"
+
+      # 重要：需要在 Jenkins Web UI 中创建此 Agent 节点后，复制 Secret 填入这里
+      # 步骤：Jenkins > 系统管理 > 节点管理 > 新建节点
+      JENKINS_SECRET: "4c104f217ae837f5ce5b250f552e62546e3ed7b3493841fd7454f6856935cd90"
+
+      # Agent 工作目录
+      JENKINS_AGENT_WORKDIR: "/home/jenkins/agent"
+
+      # .NET 配置
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
+
+      # 代理设置：排除内部 Docker 网络
+      NO_PROXY: "localhost,127.0.0.1,jenkins-master-test,172.16.0.0/12,192.168.0.0/16"
+      no_proxy: "localhost,127.0.0.1,jenkins-master-test,172.16.0.0/12,192.168.0.0/16"
+
+    volumes:
+      # 工作目录持久化
+      - jenkins-agent-dotnet-test-workspace:/home/jenkins/agent
+
+      # NuGet 缓存
+      - jenkins-agent-dotnet-test-nuget:/home/jenkins/.nuget
+
+      # 挂载测试项目（老师提供的项目）
+      - ./examples:/test-projects:ro
+
+      # Docker-outside-of-Docker: 挂载宿主机 Docker socket
+      - /var/run/docker.sock:/var/run/docker.sock
+
+    networks:
+      - jenkinsdeploy_default
+
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+
+    labels:
+      - "project=jenkins"
+      - "type=agent"
+      - "language=dotnet"
+
+volumes:
+  jenkins-agent-dotnet-test-workspace:
+    driver: local
+  jenkins-agent-dotnet-test-nuget:
+    driver: local
+
+networks:
+  jenkinsdeploy_default:
+    external: true
