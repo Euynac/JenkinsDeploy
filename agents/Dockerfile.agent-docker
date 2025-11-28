@@ -1,0 +1,38 @@
+# Jenkins Agent Docker - Docker 支持层
+# 基于 agent-base，添加 Docker CLI (DooD)
+FROM jenkins-agent-base:1.0
+
+USER root
+
+# 安装 Docker CLI 依赖
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    apt-transport-https gnupg lsb-release \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装 Docker CLI (Docker-outside-of-Docker)
+RUN curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null \
+    && apt-get update \
+    && apt-get install -y docker-ce-cli docker-compose-plugin \
+    && rm -rf /var/lib/apt/lists/*
+
+# 验证 Docker 安装
+RUN docker --version
+
+# 添加 jenkins 用户到 docker 组（启动时会动态调整）
+RUN usermod -aG docker jenkins || true
+
+# 复制 Docker 权限修复脚本
+COPY entrypoint-agent-docker.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/entrypoint-agent-docker.sh
+
+# 切换回 jenkins 用户
+USER jenkins
+
+LABEL maintainer="devops-team@example.com"
+LABEL description="Jenkins Agent with Docker CLI support (DooD)"
+LABEL version="1.0"
+
+# 使用自定义 entrypoint 来修复 Docker 权限
+USER root
+ENTRYPOINT ["/usr/local/bin/entrypoint-agent-docker.sh"]

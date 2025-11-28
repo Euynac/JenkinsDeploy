@@ -1,7 +1,7 @@
 pipeline {
 
      agent {
-        label 'dotnet'  // 修改为使用 dotnet 标签
+        label 'build-node'  
     }
     
     // 环境变量配置
@@ -26,28 +26,32 @@ pipeline {
         // SCANNER_HOME = tool 'ms-scanner-8'  // 使用已配置的 MSBuild Scanner（作为备用）
     }
     
-
+    
     stages {
-        // 阶段 1: 代码检出（简化：使用本地代码）
+        // 阶段 1: 代码检出
         stage('Checkout') {
             steps {
                 script {
                     echo "=========================================="
-                    echo "使用本地代码进行测试..."
-                    echo "项目路径: ${PROJECT_PATH}"
+                    echo "开始从 GitLab 拉取代码..."
+                    echo "仓库: ${GITLAB_REPO}"
+                    echo "分支: ${GIT_BRANCH}"
                     echo "=========================================="
-
-                    // 检查项目目录是否存在
+                }
+                
+                git(
+                    url: "${GITLAB_URL}/${GITLAB_REPO}.git",
+                    branch: "${GIT_BRANCH}",
+                    credentialsId: "${GITLAB_CREDENTIALS_ID}",
+                    changelog: true,
+                    poll: true
+                )
+                
+                script {
                     sh """
-                        if [ -d "${PROJECT_PATH}" ]; then
-                            echo "✅ 项目目录存在"
-                            ls -la ${PROJECT_PATH}
-                        else
-                            echo "❌ 项目目录不存在: ${PROJECT_PATH}"
-                            echo "当前目录内容:"
-                            ls -la
-                            exit 1
-                        fi
+                        echo "代码检出完成"
+                        cd ${PROJECT_PATH}
+                        git log -1 --oneline
                     """
                 }
             }
@@ -250,15 +254,7 @@ pipeline {
             }
         }
 
-        // ===== 以下阶段已移除，仅用于本地测试 =====
-        // - E2E Tests
-        // - SonarQube Analysis
-        // - Publish
-        // - Package
-        // - Archive Artifacts
-        // - Deploy to Nexus
-
-        /* 已注释
+        // 阶段 6: 端到端测试
         stage('E2E Tests') {
             steps {
                 script {
@@ -884,9 +880,8 @@ pipeline {
                 }
             }
         }
-        */
     }
-
+    
     post {
         // 构建成功后的操作
         success {

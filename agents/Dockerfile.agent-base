@@ -1,0 +1,49 @@
+# Jenkins Agent Base - 最基础镜像
+# 包含：Python、基础工具
+FROM jenkins/inbound-agent:latest-jdk17
+
+USER root
+
+# 设置时区
+ENV TZ=Asia/Shanghai
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# 安装基础工具（分步安装以应对网络问题）
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git curl wget unzip ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装 Python 及相关工具
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 python3-pip python3-venv \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装网络工具（E2E 测试需要）
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    lsof netcat-openbsd \
+    && rm -rf /var/lib/apt/lists/*
+
+# 验证安装
+RUN python3 --version && \
+    pip3 --version && \
+    git --version
+
+# 创建 Python 符号链接
+RUN ln -sf /usr/bin/python3 /usr/bin/python && \
+    ln -sf /usr/bin/pip3 /usr/bin/pip
+
+# 创建工作目录
+RUN mkdir -p /home/jenkins/agent && \
+    chown -R jenkins:jenkins /home/jenkins
+
+WORKDIR /home/jenkins/agent
+
+# 切换回 jenkins 用户
+USER jenkins
+
+LABEL maintainer="devops-team@example.com"
+LABEL description="Jenkins Agent Base with Python and basic tools"
+LABEL version="1.0"
+
+# 继承原始 entrypoint
+# ENTRYPOINT 已在 jenkins/inbound-agent 中定义

@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   agent-dotnet-test:
-    image: jenkins-agent-dotnet:1.2
+    image: jenkins-agent-dotnet:2.0
     container_name: jenkins-agent-dotnet-test
     restart: unless-stopped
 
