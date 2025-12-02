@@ -310,7 +310,7 @@ E2E 测试环境完全运行在 Jenkins Agent 容器内：
 
 ### Pipeline 示例
 
-完整示例: [`examples/teacher-version/quick-test-pipeline.groovy`](examples/teacher-version/quick-test-pipeline.groovy)
+完整示例: [`examples/quick-test-pipeline.groovy`](examples/quick-test-pipeline.groovy)
 
 **关键步骤**:
 
@@ -374,7 +374,7 @@ nohup env ConnectionStrings__DefaultConnection="..." dotnet run &
 
 ### 数据库容器配置
 
-[`examples/teacher-version/todoapp-backend-api-e2etest-main/docker-compose.test.yml`](examples/teacher-version/todoapp-backend-api-e2etest-main/docker-compose.test.yml):
+[`examples/todoapp-backend-api-e2etest-main/docker-compose.test.yml`](examples/todoapp-backend-api-e2etest-main/docker-compose.test.yml):
 
 ```yaml
 services:
@@ -681,11 +681,10 @@ JenkinsDeploy/
 │   └── DOCKER_SOCKET_CONFIG.md      # Docker Socket 权限配置文档
 │
 ├── examples/                        # 示例项目
-│   └── teacher-version/             # 教学版本示例
-│       ├── quick-test-pipeline.groovy  # E2E 测试 Pipeline
-│       └── todoapp-backend-api-e2etest-main/
-│           ├── docker-compose.test.yml  # 测试数据库配置
-│           └── requirements.txt     # Python 测试依赖
+│   ├── quick-test-pipeline.groovy  # E2E 测试 Pipeline
+│   └── todoapp-backend-api-e2etest-main/
+│       ├── docker-compose.test.yml  # 测试数据库配置
+│       └── requirements.txt     # Python 测试依赖
 │
 ├── docs/                            # 项目文档
 │   └── ...
@@ -701,7 +700,7 @@ JenkinsDeploy/
 
 - [Docker Socket 权限配置指南](agents/DOCKER_SOCKET_CONFIG.md)
 - [项目结构详解](PROJECT_STRUCTURE.md)
-- [E2E 测试 Pipeline 完整示例](examples/teacher-version/quick-test-pipeline.groovy)
+- [E2E 测试 Pipeline 完整示例](examples/quick-test-pipeline.groovy)
 
 ---
 
