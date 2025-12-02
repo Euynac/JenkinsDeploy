@@ -1,0 +1,76 @@
+version: '3.8'
+
+# SonarQube 代码质量分析平台
+# 用于静态代码分析、代码覆盖率报告、技术债务跟踪
+
+services:
+  # PostgreSQL 数据库（SonarQube 后端存储）
+  sonarqube-db:
+    image: postgres:16-alpine
+    container_name: sonarqube-db
+    environment:
+      POSTGRES_USER: sonar
+      POSTGRES_PASSWORD: sonar
+      POSTGRES_DB: sonarqube
+    volumes:
+      - sonarqube-db-data:/var/lib/postgresql/data
+    networks:
+      - sonarqube-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sonar"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # SonarQube 服务器
+  sonarqube:
+    image: sonarqube:community  # LTS 版本，稳定可靠
+    container_name: sonarqube
+    depends_on:
+      sonarqube-db:
+        condition: service_healthy
+    environment:
+      # 数据库连接配置
+      SONAR_JDBC_URL: jdbc:postgresql://sonarqube-db:5432/sonarqube
+      SONAR_JDBC_USERNAME: sonar
+      SONAR_JDBC_PASSWORD: sonar
+
+      # JVM 内存配置（根据服务器资源调整）
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: 'true'  # 禁用 Elasticsearch 生产环境检查（仅开发/测试环境）
+    volumes:
+      # 持久化数据
+      - sonarqube-data:/opt/sonarqube/data
+      - sonarqube-extensions:/opt/sonarqube/extensions
+      - sonarqube-logs:/opt/sonarqube/logs
+    ports:
+      - "9000:9000"  # Web UI 端口
+    networks:
+      - sonarqube-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:9000/api/system/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s  # SonarQube 启动需要较长时间
+    ulimits:
+      # Elasticsearch 要求
+      nofile:
+        soft: 65536
+        hard: 65536
+
+networks:
+  sonarqube-network:
+    driver: bridge
+    name: sonarqube-network
+
+volumes:
+  sonarqube-db-data:
+    name: sonarqube-db-data
+  sonarqube-data:
+    name: sonarqube-data
+  sonarqube-extensions:
+    name: sonarqube-extensions
+  sonarqube-logs:
+    name: sonarqube-logs

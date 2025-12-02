@@ -541,6 +541,81 @@ done
 
 ---
 
+### ⚠️ 常见问题 6: HTTP 代理导致 SonarQube 连接失败
+
+**症状**:
+- SonarQube Analysis 阶段失败
+- 错误信息: `Http status code is BadGateway`
+- 日志显示: `Downloading from http://sonarqube:9000/api/server/version failed`
+
+**根本原因**:
+Jenkins Agent 配置了 HTTP 代理（如 `HTTP_PROXY=http://host.docker.internal:6666`），但 `NO_PROXY` 环境变量中**没有包含 SonarQube 服务器**，导致：
+1. 对 SonarQube 的请求被发送到代理服务器
+2. 代理服务器无法解析 Docker 内部的 `sonarqube` 域名
+3. 返回 502 Bad Gateway 错误
+
+**诊断方法**:
+
+```bash
+# 1. 检查 Agent 是否使用代理
+docker exec jenkins-agent-dotnet-test env | grep -i proxy
+
+# 2. 测试 SonarQube 连接（带详细输出）
+docker exec jenkins-agent-dotnet-test curl -v http://sonarqube:9000/api/server/version
+
+# 如果看到以下输出，说明请求被发送到代理了：
+# * Uses proxy env variable http_proxy == 'http://...'
+# < HTTP/1.1 502 Bad Gateway
+```
+
+**解决方案**:
+
+1. **编辑 Agent 配置文件**（`agents/docker-compose-test-dotnet.yml`）:
+
+   ```yaml
+   environment:
+     # 代理设置：排除内部 Docker 网络和 SonarQube
+     NO_PROXY: "localhost,127.0.0.1,jenkins-master-test,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
+     no_proxy: "localhost,127.0.0.1,jenkins-master-test,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
+   ```
+
+   **必须添加**：
+   - `sonarqube` - SonarQube 服务器主机名
+   - `sonarqube-db` - SonarQube 数据库主机名（可选）
+   - `172.19.0.0/16` - SonarQube 网络的 CIDR（使用 `docker network inspect sonarqube-network` 查看）
+
+2. **重启 Agent 容器**:
+
+   ```bash
+   cd agents
+   docker compose -f docker-compose-test-dotnet.yml restart
+   ```
+
+3. **验证修复**:
+
+   ```bash
+   # 应该看到 "no_proxy" 包含 sonarqube
+   docker exec jenkins-agent-dotnet-test env | grep NO_PROXY
+
+   # 应该看到直接连接（不经过代理），返回 HTTP/1.1 200
+   docker exec jenkins-agent-dotnet-test curl -v http://sonarqube:9000/api/server/version
+
+   # 应该返回 SonarQube 版本号（如 25.11.0.114957）
+   docker exec jenkins-agent-dotnet-test curl -s http://sonarqube:9000/api/server/version
+   ```
+
+**预防措施**:
+- 在任何使用 HTTP 代理的环境中，务必将内部 Docker 服务添加到 `NO_PROXY`
+- 使用 Docker 网络时，建议添加常用的内网 CIDR：
+  - `10.0.0.0/8`
+  - `172.16.0.0/12`
+  - `192.168.0.0/16`
+- 对于其他内部服务（如 Nexus、GitLab），也要添加到 `NO_PROXY`
+
+**详细文档**: 参考 [`components/sonarqube/README.md`](components/sonarqube/README.md) 中的"问题 0"
+
+---
+
 ## 💡 最佳实践
 
 ### 1. 镜像管理

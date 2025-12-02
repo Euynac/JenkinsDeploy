@@ -12,10 +12,6 @@ RUN wget https://packages.microsoft.com/config/debian/12/packages-microsoft-prod
     && apt-get install -y dotnet-sdk-8.0 \
     && rm -rf /var/lib/apt/lists/*
 
-# 安装 SonarScanner for .NET
-RUN dotnet tool install --global dotnet-sonarscanner
-ENV PATH="${PATH}:/root/.dotnet/tools"
-
 # 配置 NuGet 使用内网 Nexus（可选，部署时修改）
 # RUN mkdir -p /home/jenkins/.nuget/NuGet
 # COPY NuGet.Config /home/jenkins/.nuget/NuGet/NuGet.Config
@@ -26,7 +22,8 @@ RUN dotnet --version && \
 
 # 创建 NuGet 配置目录并设置权限
 RUN mkdir -p /home/jenkins/.nuget/NuGet && \
-    chown -R jenkins:jenkins /home/jenkins/.nuget
+    mkdir -p /home/jenkins/.dotnet/tools && \
+    chown -R jenkins:jenkins /home/jenkins/.nuget /home/jenkins/.dotnet
 
 # 创建 docker 组（GID 1001），消除 groups 命令的警告
 # 注意：GID 必须与宿主机 docker.sock 的 GID 匹配
@@ -38,6 +35,11 @@ USER jenkins
 # 设置 .NET 环境变量
 ENV DOTNET_CLI_TELEMETRY_OPTOUT=1
 ENV DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
+ENV PATH="${PATH}:/home/jenkins/.dotnet/tools"
+
+# 安装 SonarScanner for .NET（在 jenkins 用户下）
+RUN dotnet tool install --global dotnet-sonarscanner && \
+    dotnet tool list --global
 
 LABEL maintainer="devops-team@example.com"
 LABEL description="Jenkins Agent with .NET SDK 8.0 (based on agent-docker)"

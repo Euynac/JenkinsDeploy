@@ -20,9 +20,9 @@ services:
       DOTNET_CLI_TELEMETRY_OPTOUT: "1"
       DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
 
-      # 代理设置：排除内部 Docker 网络
-      NO_PROXY: "localhost,127.0.0.1,jenkins-master-test,172.16.0.0/12,192.168.0.0/16"
-      no_proxy: "localhost,127.0.0.1,jenkins-master-test,172.16.0.0/12,192.168.0.0/16"
+      # 代理设置：排除内部 Docker 网络和 SonarQube
+      NO_PROXY: "localhost,127.0.0.1,jenkins-master-test,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
+      no_proxy: "localhost,127.0.0.1,jenkins-master-test,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
 
     volumes:
       # 工作目录持久化
@@ -44,6 +44,7 @@ services:
 
     networks:
       - jenkinsdeploy_default
+      - sonarqube-network  # 连接到 SonarQube 网络，用于代码扫描
 
     # 资源限制
     deploy:
@@ -69,3 +70,6 @@ volumes:
 networks:
   jenkinsdeploy_default:
     external: true
+  sonarqube-network:
+    external: true
+    name: sonarqube-network  # 连接到 SonarQube 服务，必须先启动 SonarQube
