@@ -162,27 +162,8 @@ pipeline {
                                         mkdir -p coverage
                                     """
 
-                                    // 检查并安装 jest-junit（如果未安装）
-                                    echo "检查 jest-junit 是否已安装..."
-                                    def jestJunitInstalled = sh(
-                                        script: '''
-                                            if npm list jest-junit > /dev/null 2>&1; then
-                                                echo "INSTALLED"
-                                            else
-                                                echo "NOT_INSTALLED"
-                                            fi
-                                        ''',
-                                        returnStdout: true
-                                    ).trim()
-
-                                    if (jestJunitInstalled == "NOT_INSTALLED") {
-                                        echo "安装 jest-junit..."
-                                        sh """
-                                            npm install --save-dev jest-junit || echo "安装 jest-junit 失败，将尝试其他方式生成报告"
-                                        """
-                                    }
-
                                     // 运行测试并生成 JUnit 报告和覆盖率报告
+                                    // 注意：jest-junit 已在 package.json 中定义，无需动态安装
                                     echo "运行测试并生成覆盖率报告..."
                                     def testExitCode = sh(
                                         script: """
@@ -194,31 +175,18 @@ pipeline {
                                             # 清除 Jest 缓存
                                             npx jest --clearCache
 
-                                            # 如果 jest-junit 已安装，使用它作为 reporter
-                                            if npm list jest-junit > /dev/null 2>&1; then
-                                                echo "使用 jest-junit 生成 JUnit 报告，同时生成覆盖率报告..."
-                                                npx jest --reporters=default --reporters=jest-junit \\
-                                                    --coverage \\
-                                                    --coverageReporters=text \\
-                                                    --coverageReporters=text-summary \\
-                                                    --coverageReporters=lcov \\
-                                                    --coverageDirectory=coverage || {
-                                                    TEST_EXIT_CODE=\$?
-                                                    echo "测试执行完成，退出码: \$TEST_EXIT_CODE"
-                                                    exit \$TEST_EXIT_CODE
-                                                }
-                                            else
-                                                echo "jest-junit 未安装，使用默认方式运行测试并生成覆盖率..."
-                                                npx jest --coverage \\
-                                                    --coverageReporters=text \\
-                                                    --coverageReporters=text-summary \\
-                                                    --coverageReporters=lcov \\
-                                                    --coverageDirectory=coverage || {
-                                                    TEST_EXIT_CODE=\$?
-                                                    echo "测试执行完成，退出码: \$TEST_EXIT_CODE"
-                                                    exit \$TEST_EXIT_CODE
-                                                }
-                                            fi
+                                            # 运行测试：使用 jest-junit reporter + 生成覆盖率
+                                            echo "运行测试（jest-junit + 覆盖率）..."
+                                            npx jest --reporters=default --reporters=jest-junit \\
+                                                --coverage \\
+                                                --coverageReporters=text \\
+                                                --coverageReporters=text-summary \\
+                                                --coverageReporters=lcov \\
+                                                --coverageDirectory=coverage || {
+                                                TEST_EXIT_CODE=\$?
+                                                echo "测试执行完成，退出码: \$TEST_EXIT_CODE"
+                                                exit \$TEST_EXIT_CODE
+                                            }
                                         """,
                                         returnStatus: true
                                     )
