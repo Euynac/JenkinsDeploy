@@ -19,6 +19,10 @@ services:
       # JVM参数配置
       - JAVA_OPTS=-Duser.timezone=Asia/Shanghai -Xmx2g -Xms512m
 
+      # 代理配置（绕过内部服务）
+      - NO_PROXY=localhost,127.0.0.1,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16
+      - no_proxy=localhost,127.0.0.1,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16
+
     # 健康检查
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/login"]
@@ -34,7 +38,19 @@ services:
         max-size: "50m"
         max-file: "2"
 
+    # 网络配置（连接到 Jenkins 默认网络和 SonarQube 网络）
+    networks:
+      - default
+      - sonarqube-network
+
+# 网络定义
+networks:
+  sonarqube-network:
+    external: true
+    name: sonarqube-network
+
 # 数据卷定义
 volumes:
   jenkins_home_test:
-    driver: local
+    name: jenkinsdeploy_jenkins_home_test  # 使用已有的 volume，保留所有配置
+    external: true

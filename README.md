@@ -115,10 +115,13 @@ cd master
 docker compose up -d
 
 # 3. 构建 Jenkins Agent 镜像（分层构建）
-cd ../agents
-bash build-layered.sh
+cd ..
+docker build -f agents/base/Dockerfile.agent-base -t jenkins-agent-base:1.0 agents/base
+docker build -f agents/base/Dockerfile.agent-docker -t jenkins-agent-docker:1.0 agents/base
+docker build -f agents/dotnet/Dockerfile.dotnet -t jenkins-agent-dotnet:2.0 agents/dotnet
 
 # 4. 启动 .NET Agent
+cd agents/dotnet
 docker compose -f docker-compose-test-dotnet.yml up -d
 
 # 5. 访问 Jenkins
@@ -165,11 +168,19 @@ TZ=Asia/Shanghai                    # 时区设置
 
 ### 步骤 2: 构建 Agent 镜像
 
-#### 选项 A: 分层构建（推荐）
+#### 分层构建步骤
 
 ```bash
-cd agents
-bash build-layered.sh
+cd /mnt/d/Repositories/JenkinsDeploy
+
+# 构建基础镜像
+docker build -f agents/base/Dockerfile.agent-base -t jenkins-agent-base:1.0 agents/base
+
+# 构建 Docker Agent
+docker build -f agents/base/Dockerfile.agent-docker -t jenkins-agent-docker:1.0 agents/base
+
+# 构建 .NET Agent
+docker build -f agents/dotnet/Dockerfile.dotnet -t jenkins-agent-dotnet:2.0 agents/dotnet
 ```
 
 **构建顺序**:
@@ -178,19 +189,6 @@ bash build-layered.sh
 3. `jenkins-agent-dotnet:2.0` (.NET + Python 层)
 
 **构建时间**: 约 5-10 分钟（首次构建）
-
-#### 选项 B: 单独构建
-
-```bash
-# 构建基础镜像
-docker build -f Dockerfile.agent-base -t jenkins-agent-base:1.0 .
-
-# 构建 Docker Agent
-docker build -f Dockerfile.agent-docker -t jenkins-agent-docker:1.0 .
-
-# 构建 .NET Agent
-docker build -f Dockerfile.dotnet -t jenkins-agent-dotnet:2.0 .
-```
 
 ### 步骤 3: 配置 Docker Socket 权限
 
@@ -212,7 +210,7 @@ group_add:
 ### 步骤 4: 启动 Agent
 
 ```bash
-cd agents
+cd agents/dotnet
 docker compose -f docker-compose-test-dotnet.yml up -d
 ```
 
@@ -236,6 +234,7 @@ docker compose -f docker-compose-test-dotnet.yml up -d
 5. 保存后，复制 **Secret** 到 `docker-compose-test-dotnet.yml`
 6. 重启 Agent 容器:
    ```bash
+   cd agents/dotnet
    docker compose -f docker-compose-test-dotnet.yml restart
    ```
 
@@ -434,7 +433,7 @@ docker exec jenkins-agent-dotnet-test cat /proc/1/status | grep Groups
 # 应该输出: Groups: 1000 1001
 ```
 
-**参考文档**: [`agents/DOCKER_SOCKET_CONFIG.md`](agents/DOCKER_SOCKET_CONFIG.md)
+**参考文档**: [`agents/doc/DOCKER_SOCKET_CONFIG.md`](agents/doc/DOCKER_SOCKET_CONFIG.md)
 
 ---
 
@@ -570,7 +569,7 @@ docker exec jenkins-agent-dotnet-test curl -v http://sonarqube:9000/api/server/v
 
 **解决方案**:
 
-1. **编辑 Agent 配置文件**（`agents/docker-compose-test-dotnet.yml`）:
+1. **编辑 Agent 配置文件**（`agents/dotnet/docker-compose-test-dotnet.yml`）:
 
    ```yaml
    environment:
@@ -587,7 +586,7 @@ docker exec jenkins-agent-dotnet-test curl -v http://sonarqube:9000/api/server/v
 2. **重启 Agent 容器**:
 
    ```bash
-   cd agents
+   cd agents/dotnet
    docker compose -f docker-compose-test-dotnet.yml restart
    ```
 
@@ -747,13 +746,18 @@ JenkinsDeploy/
 │       └── jenkins-casc.yaml        # JCasC 自动配置
 │
 ├── agents/                          # Jenkins Agent 镜像
-│   ├── Dockerfile.agent-base        # 基础 Agent
-│   ├── Dockerfile.agent-docker      # Docker Agent
-│   ├── Dockerfile.dotnet            # .NET Agent (含 Python)
-│   ├── entrypoint-agent-docker.sh   # Docker Agent 入口脚本
-│   ├── build-layered.sh             # 分层构建脚本
-│   ├── docker-compose-test-dotnet.yml  # .NET Agent 部署配置
-│   └── DOCKER_SOCKET_CONFIG.md      # Docker Socket 权限配置文档
+│   ├── base/                        # 基础 Agent 镜像
+│   │   ├── Dockerfile.agent-base        # Jenkins Agent 基础镜像
+│   │   ├── Dockerfile.agent-docker      # Docker Agent 镜像 (DooD)
+│   │   ├── entrypoint-agent-base.sh     # 基础 Agent 入口脚本
+│   │   └── entrypoint-agent-docker.sh   # Docker Agent 入口脚本
+│   ├── dotnet/                      # .NET Agent 镜像
+│   │   ├── Dockerfile.dotnet            # .NET Agent 镜像 (含 Python)
+│   │   ├── entrypoint-dotnet.sh         # .NET Agent 入口脚本
+│   │   └── docker-compose-test-dotnet.yml  # .NET Agent 部署配置
+│   └── doc/                         # 文档目录
+│       ├── DOCKER_SOCKET_CONFIG.md      # Docker Socket 权限配置
+│       └── README.md                    # Agent 文档
 │
 ├── examples/                        # 示例项目
 │   ├── quick-test-pipeline.groovy  # E2E 测试 Pipeline
@@ -773,7 +777,7 @@ JenkinsDeploy/
 
 ## 📚 相关文档
 
-- [Docker Socket 权限配置指南](agents/DOCKER_SOCKET_CONFIG.md)
+- [Docker Socket 权限配置指南](agents/doc/DOCKER_SOCKET_CONFIG.md)
 - [项目结构详解](PROJECT_STRUCTURE.md)
 - [E2E 测试 Pipeline 完整示例](examples/quick-test-pipeline.groovy)
 

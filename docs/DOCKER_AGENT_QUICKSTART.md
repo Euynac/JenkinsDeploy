@@ -18,14 +18,22 @@
 ### 步骤 1: 外网构建镜像（15分钟）
 
 ```bash
-cd /mnt/d/Repositories/JenkinsDeploy/agents
-bash build-agents.sh
+cd /mnt/d/Repositories/JenkinsDeploy
+
+# 构建 Agent Base 镜像
+docker build -f agents/base/Dockerfile.agent-base -t jenkins-agent-base:1.0 agents/base
+
+# 构建 Docker Agent 镜像
+docker build -f agents/base/Dockerfile.agent-docker -t jenkins-agent-docker:1.0 agents/base
+
+# 构建 .NET Agent 镜像
+docker build -f agents/dotnet/Dockerfile.dotnet -t jenkins-agent-dotnet:2.0 agents/dotnet
 ```
 
-生成文件：
-- `jenkins-agent-dotnet-1.0.tar` (1.5GB)
-- `jenkins-agent-java-1.0.tar` (1.2GB)
-- `jenkins-agent-vue-1.0.tar` (1.0GB)
+导出镜像文件：
+```bash
+docker save -o jenkins-agent-dotnet-2.0.tar jenkins-agent-dotnet:2.0
+```
 
 ### 步骤 2: 内网导入镜像（5分钟）
 
@@ -35,7 +43,7 @@ scp jenkins-agent-*.tar root@internal-server:/opt/jenkins/
 
 # 在内网执行
 cd /opt/jenkins
-bash import-agents.sh
+docker load -i jenkins-agent-dotnet-2.0.tar
 ```
 
 ### 步骤 3: 配置启动（10分钟）
@@ -99,16 +107,22 @@ docker exec jenkins-agent-dotnet-01 ping jenkins-master
 ```
 JenkinsDeploy/
 ├── agents/                          # Agent 镜像源文件
-│   ├── Dockerfile.dotnet            # .NET Agent
-│   ├── Dockerfile.java              # Java Agent
-│   ├── Dockerfile.vue               # Vue Agent
-│   ├── build-agents.sh              # 构建脚本（外网）
-│   ├── import-agents.sh             # 导入脚本（内网）
-│   └── README.md
+│   ├── base/                        # 基础 Agent 镜像
+│   │   ├── Dockerfile.agent-base        # Jenkins Agent 基础
+│   │   ├── Dockerfile.agent-docker      # Docker Agent (DooD)
+│   │   ├── entrypoint-agent-base.sh     # 基础入口脚本
+│   │   └── entrypoint-agent-docker.sh   # Docker 入口脚本
+│   ├── dotnet/                      # .NET Agent
+│   │   ├── Dockerfile.dotnet            # .NET Agent 镜像
+│   │   ├── entrypoint-dotnet.sh         # .NET 入口脚本
+│   │   └── docker-compose-test-dotnet.yml  # 部署配置
+│   └── doc/                         # 文档
+│       ├── DOCKER_SOCKET_CONFIG.md
+│       └── README.md
 │
-├── docker-compose-agents.yml        # Agent 容器编排
-├── DOCKER_AGENT_GUIDE.md            # 详细指南
-└── AGENT_DEPLOYMENT_COMPARISON.md   # 方案对比
+├── docs/
+│   ├── DOCKER_AGENT_GUIDE.md        # 详细指南
+│   └── AGENT_DEPLOYMENT_COMPARISON.md   # 方案对比
 ```
 
 ---

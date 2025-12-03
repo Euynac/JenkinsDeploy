@@ -43,15 +43,20 @@
 
 ```
 agents/
-├── Dockerfile.dotnet          # .NET Agent 镜像定义
-├── Dockerfile.java            # Java Agent 镜像定义
-├── Dockerfile.vue             # Vue Agent 镜像定义
-├── build-agents.sh            # 构建脚本（外网使用）
-├── import-agents.sh           # 导入脚本（内网使用）
-└── README.md                  # 本文件
+├── base/                      # 基础 Agent 镜像
+│   ├── Dockerfile.agent-base      # Jenkins Agent 基础镜像
+│   ├── Dockerfile.agent-docker    # Docker Agent 镜像（DooD）
+│   ├── entrypoint-agent-base.sh   # 基础 Agent 入口脚本
+│   └── entrypoint-agent-docker.sh # Docker Agent 入口脚本
+├── dotnet/                    # .NET Agent 镜像
+│   ├── Dockerfile.dotnet          # .NET Agent 镜像定义
+│   ├── entrypoint-dotnet.sh       # .NET Agent 入口脚本
+│   └── docker-compose-test-dotnet.yml  # .NET Agent 部署配置
+└── doc/                       # 文档目录
+    ├── DOCKER_SOCKET_CONFIG.md    # Docker Socket 权限配置
+    └── README.md                  # 本文件
 
-../
-├── docker-compose-agents.yml  # Agent 容器编排配置
+../docs/
 └── DOCKER_AGENT_GUIDE.md      # 详细部署指南
 ```
 

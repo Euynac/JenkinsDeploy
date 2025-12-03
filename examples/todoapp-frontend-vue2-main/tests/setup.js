@@ -1,4 +1,4 @@
-import Vue from 'vue'
+const Vue = require('vue').default || require('vue')
 
 // 全局注册 Vue 插件
 Vue.config.productionTip = false

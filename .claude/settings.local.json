@@ -18,7 +18,8 @@
       "Bash(git branch:*)",
       "Bash(git push:*)",
       "Bash(sort:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(npm install:*)"
     ],
     "deny": [],
     "ask": []

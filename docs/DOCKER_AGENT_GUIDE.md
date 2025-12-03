@@ -81,16 +81,20 @@
 ### 步骤 1: 在外网构建 Agent 镜像
 
 ```bash
-cd /mnt/d/Repositories/JenkinsDeploy/agents
+cd /mnt/d/Repositories/JenkinsDeploy
 
-# 构建所有 Agent 镜像
-bash build-agents.sh
+# 构建 Agent Base 镜像
+docker build -f agents/base/Dockerfile.agent-base -t jenkins-agent-base:1.0 agents/base
 
+# 构建 Docker Agent 镜像
+docker build -f agents/base/Dockerfile.agent-docker -t jenkins-agent-docker:1.0 agents/base
+
+# 构建 .NET Agent 镜像
+docker build -f agents/dotnet/Dockerfile.dotnet -t jenkins-agent-dotnet:2.0 agents/dotnet
+
+# 导出镜像（用于内网部署）
+docker save -o jenkins-agent-dotnet-2.0.tar jenkins-agent-dotnet:2.0
 # 等待构建完成（约10-15分钟）
-# 生成文件：
-# - jenkins-agent-dotnet-1.0.tar
-# - jenkins-agent-java-1.0.tar
-# - jenkins-agent-vue-1.0.tar
 ```
 
 ### 步骤 2: 上传到内网
@@ -436,13 +440,11 @@ Jenkins 会自动：
 
 | Agent 类型 | 数量 | 资源配置 | 并发构建数 |
 |-----------|------|---------|-----------|
-| .NET Agent | 2个 | 8核16GB | 每台4个 |
-| Java Agent | 2个 | 8核16GB | 每台4个 |
-| Vue Agent | 1个 | 4核8GB | 4个 |
+| .NET Agent | 2-3个 | 4核8GB | 每台4个 |
 
-**总资源**: 44核88GB
+**总资源**: 12-24核 24-32GB
 
-**并发能力**: 同时构建 20 个项目
+**并发能力**: 同时构建 8-12 个项目
 
 ### 宿主机配置建议
 
@@ -536,11 +538,11 @@ docker exec jenkins-agent-dotnet-01 env | grep JENKINS
 **解决**:
 ```bash
 # 验证镜像内容
-docker run --rm jenkins-agent-dotnet:1.0 dotnet --version
+docker run --rm jenkins-agent-dotnet:2.0 dotnet --version
 
 # 如果失败，重新构建镜像
-cd agents
-bash build-agents.sh
+cd /mnt/d/Repositories/JenkinsDeploy
+docker build -f agents/dotnet/Dockerfile.dotnet -t jenkins-agent-dotnet:2.0 agents/dotnet
 ```
 
 ### 3. 磁盘空间不足

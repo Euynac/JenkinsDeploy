@@ -1,0 +1,78 @@
+services:
+  agent-vue-test:
+    image: jenkins-agent-vue:1.0
+    container_name: jenkins-agent-vue-test
+    restart: unless-stopped
+
+    environment:
+      # Jenkins Master 配置
+      JENKINS_URL: "http://jenkins-master-test:8080"
+      JENKINS_AGENT_NAME: "agent-vue"
+
+      # 重要：需要在 Jenkins Web UI 中创建此 Agent 节点后，复制 Secret 填入这里
+      # 步骤：Jenkins > 系统管理 > 节点管理 > 新建节点
+      JENKINS_SECRET: "863f3f6bdbf6c8d86b93e52dfaa9c4e7b5b46ccac88ed4b7deb9763e452076e1"
+
+      # Agent 工作目录
+      JENKINS_AGENT_WORKDIR: "/home/jenkins/agent"
+
+      # Node.js 配置
+      NODE_ENV: "production"
+      NPM_CONFIG_LOGLEVEL: "info"
+
+      # 代理设置：排除内部 Docker 网络和 SonarQube
+      NO_PROXY: "localhost,127.0.0.1,jenkins-master-test,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
+      no_proxy: "localhost,127.0.0.1,jenkins-master-test,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
+
+    volumes:
+      # 工作目录持久化
+      - jenkins-agent-vue-test-workspace:/home/jenkins/agent
+
+      # npm 缓存
+      - jenkins-agent-vue-test-npm:/home/jenkins/.npm
+      - jenkins-agent-vue-test-cache:/home/jenkins/.cache
+
+      # 挂载测试项目（老师提供的项目）
+      - ../../examples:/test-projects:ro
+
+      # Docker-outside-of-Docker: 挂载宿主机 Docker socket
+      - /var/run/docker.sock:/var/run/docker.sock
+
+    # 添加 Docker socket 的组 ID，使 jenkins 用户能访问 Docker
+    # 注意：这个 GID 需要与宿主机 /var/run/docker.sock 的组 ID 匹配
+    group_add:
+      - "1001"  # Docker socket GID (可能因系统而异，使用 stat -c '%g' /var/run/docker.sock 查看)
+
+    networks:
+      - jenkinsdeploy_default
+      - sonarqube-network  # 连接到 SonarQube 网络，用于代码扫描
+
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+
+    labels:
+      - "project=jenkins"
+      - "type=agent"
+      - "language=vue"
+
+volumes:
+  jenkins-agent-vue-test-workspace:
+    driver: local
+  jenkins-agent-vue-test-npm:
+    driver: local
+  jenkins-agent-vue-test-cache:
+    driver: local
+
+networks:
+  jenkinsdeploy_default:
+    external: true
+  sonarqube-network:
+    external: true
+    name: sonarqube-network  # 连接到 SonarQube 服务，必须先启动 SonarQube

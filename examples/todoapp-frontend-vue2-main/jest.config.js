@@ -7,9 +7,12 @@ module.exports = {
     'vue'
   ],
   transform: {
-    '^.+\.vue$': 'vue-jest',
+    '^.+\.vue$': '@vue/vue2-jest',
     '^.+\.jsx?$': 'babel-jest'
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!(vue|element-ui)/)'
+  ],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1'
   },
