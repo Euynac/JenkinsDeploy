@@ -18,7 +18,7 @@ services:
       - sonarqube-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U sonar"]
+      test: ["CMD-SHELL", "pg_isready -U sonar -d sonarqube"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -38,6 +38,10 @@ services:
 
       # JVM 内存配置（根据服务器资源调整）
       SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: 'true'  # 禁用 Elasticsearch 生产环境检查（仅开发/测试环境）
+
+      # 代理绕过配置 - 允许直接访问内部 Jenkins 服务
+      NO_PROXY: "localhost,127.0.0.1,jenkins-master-test,jenkins,sonarqube-db,172.19.0.0/16,172.20.0.0/16"
+      no_proxy: "localhost,127.0.0.1,jenkins-master-test,jenkins,sonarqube-db,172.19.0.0/16,172.20.0.0/16"
     volumes:
       # 持久化数据
       - sonarqube-data:/opt/sonarqube/data

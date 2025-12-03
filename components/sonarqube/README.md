@@ -81,6 +81,51 @@ docker compose logs -f sonarqube
    - 选择版本：`SonarQube Scanner 5.0` 或最新版本
 5. 点击 **Save**
 
+#### 4.4 配置 Webhook（必需！）
+
+**为什么需要 Webhook？**
+
+Jenkins 的 `waitForQualityGate` 步骤需要等待 SonarQube 完成分析并返回质量门结果。如果**没有配置 webhook**，Jenkins 只能通过轮询检查状态，容易导致：
+- ⏱️ 超时失败（默认 10 分钟）
+- 🐌 响应缓慢，浪费构建时间
+- ❌ Pipeline 频繁 ABORTED
+
+配置 webhook 后，SonarQube 会**主动通知** Jenkins 分析完成，实现秒级响应。
+
+**配置步骤**：
+
+1. 登录 SonarQube Web UI (http://localhost:9000)
+2. 进入 **Administration** → **Configuration** → **Webhooks**
+3. 点击 **Create**
+4. 填写配置：
+   - **Name**: `Jenkins` 或 `Jenkins-Webhook`
+   - **URL**: `http://jenkins-master-test:8080/sonarqube-webhook/`
+     - ⚠️ 注意最后的斜杠 `/` 不能省略
+     - 如果 Jenkins 使用其他容器名，相应修改主机名
+   - **Secret**: 留空（可选，用于验证请求来源）
+5. 点击 **Create**
+
+**验证 Webhook 配置**：
+
+```bash
+# 1. 检查 SonarQube 网络配置是否正确（见下方"问题 5"）
+docker exec sonarqube env | grep -i proxy
+
+# 2. 测试从 SonarQube 到 Jenkins webhook 的连通性（应返回 405）
+docker exec sonarqube curl -s -o /dev/null -w "%{http_code}" http://jenkins-master-test:8080/sonarqube-webhook/
+# 预期结果: 405 (Method Not Allowed - 正常，因为 endpoint 只接受 POST)
+
+# 3. 运行 Pipeline，查看质量门阶段是否快速完成（几秒内）
+# 正常日志应该显示：
+#   "SonarQube task 'xxx' status is 'SUCCESS'"
+#   而不是超时 "Timeout has been exceeded"
+```
+
+**注意事项**：
+- 可以为每个项目配置独立的 webhook（Project 级别），也可以配置全局 webhook（Global 级别）
+- 全局 webhook 对所有项目生效，更方便管理
+- 如果遇到 502 Bad Gateway 错误，参见下方"问题 5"
+
 ## 🔧 在 Pipeline 中使用
 
 参考 `examples/quick-test-pipeline.groovy` 中的 SonarQube 阶段：
@@ -270,6 +315,111 @@ export PATH="$HOME/.dotnet/tools:$PATH"
 # 验证安装
 dotnet sonarscanner --version
 ```
+
+### 问题 5: Webhook 连接失败 - 质量门检查超时
+
+**症状**:
+- Pipeline 的 `waitForQualityGate` 阶段超时（10 分钟后 ABORTED）
+- Jenkins 日志显示：`SonarQube task 'xxx' status is 'PENDING'`（一直停在 PENDING 状态）
+- 即使 SonarQube 已完成分析，Jenkins 仍然等待超时
+
+**根本原因**:
+
+SonarQube 容器使用了 HTTP 代理，但 `NO_PROXY` 列表中**没有包含 Jenkins 主机名**，导致：
+1. SonarQube 分析完成后尝试通过 webhook 通知 Jenkins
+2. HTTP 请求被代理拦截（`http://jenkins-master-test:8080/sonarqube-webhook/`）
+3. 代理无法解析 Docker 内部的 `jenkins-master-test` 域名
+4. 返回 **502 Bad Gateway**，webhook 发送失败
+5. Jenkins 无法收到通知，只能轮询等待，最终超时
+
+**诊断方法**:
+
+```bash
+# 1. 检查 SonarQube 是否使用了代理
+docker exec sonarqube env | grep -i proxy
+# 如果输出包含 HTTP_PROXY 且 NO_PROXY 不包含 jenkins-master-test，即存在问题
+
+# 2. 测试从 SonarQube 到 Jenkins webhook 的连通性
+docker exec sonarqube curl -v http://jenkins-master-test:8080/sonarqube-webhook/ 2>&1 | head -20
+# 正常：应看到 "HTTP/1.1 405" (Method Not Allowed - 正常，只接受 POST)
+# 异常：看到 "Uses proxy" 和 "HTTP/1.1 502" (Bad Gateway - 代理拦截)
+```
+
+**解决方案**:
+
+**方法 1: 更新 SonarQube 的 NO_PROXY 配置（推荐）**
+
+编辑 `components/sonarqube/docker-compose.yml`：
+
+```yaml
+services:
+  sonarqube:
+    image: sonarqube:community
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://sonarqube-db:5432/sonarqube
+      SONAR_JDBC_USERNAME: sonar
+      SONAR_JDBC_PASSWORD: sonar
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: 'true'
+
+      # 🔧 添加以下配置 - 允许直接访问内部 Jenkins 服务
+      NO_PROXY: "localhost,127.0.0.1,jenkins-master-test,jenkins,sonarqube-db,172.19.0.0/16,172.20.0.0/16"
+      no_proxy: "localhost,127.0.0.1,jenkins-master-test,jenkins,sonarqube-db,172.19.0.0/16,172.20.0.0/16"
+```
+
+**必须包含**：
+- `jenkins-master-test` - Jenkins Master 容器主机名（根据实际名称调整）
+- `jenkins` - Jenkins 的别名（如果有）
+- `172.19.0.0/16`, `172.20.0.0/16` - Docker 网络 CIDR（根据实际网络调整）
+
+重启 SonarQube：
+
+```bash
+cd components/sonarqube
+docker compose down
+docker compose up -d
+
+# 等待启动（约 30 秒）
+docker logs -f sonarqube | grep "SonarQube is operational"
+```
+
+**方法 2: 禁用 SonarQube 的代理（仅开发环境）**
+
+如果 SonarQube 不需要访问外网，可以完全禁用代理：
+
+```yaml
+services:
+  sonarqube:
+    environment:
+      # 覆盖继承的代理配置
+      HTTP_PROXY: ""
+      HTTPS_PROXY: ""
+      http_proxy: ""
+      https_proxy: ""
+```
+
+**验证修复**:
+
+```bash
+# 1. 确认 NO_PROXY 已更新
+docker exec sonarqube env | grep NO_PROXY
+# 应该输出包含 jenkins-master-test
+
+# 2. 测试连接（应返回 405 而不是 502）
+docker exec sonarqube curl -s -o /dev/null -w "%{http_code}" http://jenkins-master-test:8080/sonarqube-webhook/
+# 预期输出: 405
+
+# 3. 重新运行 Jenkins Pipeline
+# waitForQualityGate 阶段应在几秒内完成，日志显示：
+#   "SonarQube task 'xxx' status is 'SUCCESS'"
+```
+
+**预防措施**：
+- 在配置代理的环境中，务必将所有内部服务添加到 `NO_PROXY`
+- 建议的 `NO_PROXY` 模板：
+  ```
+  localhost,127.0.0.1,*.local,jenkins,jenkins-master-test,sonarqube,sonarqube-db,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+  ```
+- 使用 `docker network inspect <network-name>` 查看实际的 CIDR 并添加到 NO_PROXY
 
 ## 🔐 生产环境配置
 
