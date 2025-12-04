@@ -29,3 +29,5 @@ jenkins_home/
 Thumbs.db
 Desktop.ini
 Work-JenkinsDeployEnvironments.md
+*.tgz
+offline/docker-compose

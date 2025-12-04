@@ -7,7 +7,7 @@ services:
     environment:
       # Jenkins Master 配置
       JENKINS_URL: "http://jenkins-master:8080"
-      JENKINS_AGENT_NAME: "agent-dotnet-1"
+      JENKINS_AGENT_NAME: "agent-dotnet-8"
 
       # 重要：需要在 Jenkins Web UI 中创建此 Agent 节点后，复制 Secret 填入这里
       # 步骤：Jenkins > 系统管理 > 节点管理 > 新建节点
@@ -32,16 +32,15 @@ services:
       # 首次启动前需在宿主机执行：
       # mkdir -p /data/jenkins-cache/nuget-packages /data/jenkins-cache/dotnet-tools
       # chown -R 1000:1000 /data/jenkins-cache
-      - /data/jenkins-cache/nuget-packages:/home/jenkins/.nuget/packages
-      - /data/jenkins-cache/dotnet-tools:/home/jenkins/.dotnet/tools
+      # - /data/jenkins-cache/nuget-packages:/home/jenkins/.nuget/packages
+      # - /data/jenkins-cache/dotnet-tools:/home/jenkins/.dotnet/tools
 
-      # NuGet 缓存（方案2：Docker Volume - 备选，每个 agent 独立缓存）
-      # 如不想使用主机目录，可改用下面的配置：
-      # - jenkins-agent-dotnet-nuget:/home/jenkins/.nuget/packages
-      # - jenkins-agent-dotnet-tools:/home/jenkins/.dotnet/tools
+      # NuGet 缓存（方案2：Docker Volume - 当前启用，每个 agent 独立缓存）
+      - jenkins-agent-dotnet-nuget:/home/jenkins/.nuget/packages
+      - jenkins-agent-dotnet-tools:/home/jenkins/.dotnet/tools
 
-      # 挂载示例项目
-      - ../../examples:/examples:ro
+      # 挂载示例项目（Pipeline脚本使用 /test-projects 路径访问）
+      - ../../examples:/test-projects:ro
 
       # Docker-outside-of-Docker: 挂载宿主机 Docker socket
       - /var/run/docker.sock:/var/run/docker.sock
@@ -74,12 +73,11 @@ volumes:
   jenkins-agent-dotnet-workspace:
     driver: local
 
-  # 注意：当前配置使用主机目录挂载（/data/jenkins-cache/*）
-  # 如需使用 Docker Volume 方案，请取消下面的注释并修改上方 volumes 配置
-  # jenkins-agent-dotnet-nuget:
-  #   driver: local
-  # jenkins-agent-dotnet-tools:
-  #   driver: local
+  # 注意：当前配置使用 Docker Volume（每个agent独立缓存）
+  jenkins-agent-dotnet-nuget:
+    driver: local
+  jenkins-agent-dotnet-tools:
+    driver: local
 
 networks:
   jenkinsdeploy_default:
