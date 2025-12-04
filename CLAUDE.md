@@ -21,13 +21,13 @@ JenkinsDeploy is an enterprise-grade Jenkins CI/CD solution featuring Docker Com
 ```bash
 # Build and start Jenkins Master
 cd master
-docker compose -f docker-compose-test.yml up -d
+docker compose up -d
 
 # View logs
-docker logs jenkins-master-test
+docker logs jenkins-master
 
 # Check health status
-docker ps | grep jenkins-master-test
+docker ps | grep jenkins-master
 ```
 
 ### Jenkins Agent Images (Layered Build)
@@ -48,7 +48,7 @@ docker build -f agents/dotnet/Dockerfile.dotnet -t jenkins-agent-dotnet:2.0 agen
 
 # Start .NET agent
 cd agents/dotnet
-docker compose -f docker-compose-test-dotnet.yml up -d
+docker compose up -d
 ```
 
 ### Testing
@@ -65,7 +65,7 @@ cd examples/todoapp-backend-api-e2etest-main
 python -m pytest -v
 
 # Check agent connection
-docker logs jenkins-agent-dotnet-test | grep "Connected"
+docker logs jenkins-agent-dotnet | grep "Connected"
 ```
 
 ### SonarQube (Code Quality Analysis)
@@ -80,6 +80,56 @@ docker logs -f sonarqube
 
 # Access UI at http://localhost:9000 (admin/admin)
 ```
+
+## Cache Configuration
+
+**IMPORTANT**: Before starting any agent, you MUST create cache directories on the host to enable dependency caching and sharing across multiple agents.
+
+### Quick Setup (Single Server)
+
+```bash
+# Create cache directories
+sudo mkdir -p /data/jenkins-cache/{nuget-packages,dotnet-tools,npm-cache,node-cache}
+
+# Set permissions (jenkins container user UID=1000)
+sudo chown -R 1000:1000 /data/jenkins-cache
+
+# Verify
+ls -la /data/jenkins-cache
+```
+
+### Cache Directories
+
+| Agent Type | Host Path | Container Path | Purpose |
+|------------|-----------|----------------|---------|
+| .NET | `/data/jenkins-cache/nuget-packages` | `/home/jenkins/.nuget/packages` | NuGet packages |
+| .NET | `/data/jenkins-cache/dotnet-tools` | `/home/jenkins/.dotnet/tools` | dotnet-sonarscanner, etc. |
+| Vue/Node | `/data/jenkins-cache/npm-cache` | `/home/jenkins/.npm` | npm package cache |
+| Vue/Node | `/data/jenkins-cache/node-cache` | `/home/jenkins/.cache` | Build tool cache (Vite, Webpack) |
+
+### Why Host Directory Mounts?
+
+- **Shared across agents**: Multiple dotnet agents share the same NuGet cache
+- **Persistent**: Cache survives container restarts
+- **Space-efficient**: No duplicate downloads of same packages
+- **Fast**: Second build uses cached packages (2-3 min → 10 sec)
+
+### Multi-Server Setup (NFS)
+
+For distributed agents across multiple servers, use NFS to share cache:
+
+```bash
+# On NFS server (choose one agent as storage node)
+apt-get install -y nfs-kernel-server
+echo "/data/jenkins-cache <YOUR_IP_SUBNET>(rw,sync,no_subtree_check,no_root_squash)" >> /etc/exports
+exportfs -ra
+
+# On each agent server (replace <NFS_SERVER_IP> with actual IP)
+apt-get install -y nfs-common
+mount -t nfs <NFS_SERVER_IP>:/data/jenkins-cache /data/jenkins-cache
+```
+
+**See detailed guide**: [agents/doc/AGENT_CACHE_GUIDE.md](agents/doc/AGENT_CACHE_GUIDE.md)
 
 ## Architecture
 
@@ -111,9 +161,9 @@ jenkins-agent-dotnet:2.0  (inherits from docker)
 All containers share the `jenkinsdeploy_default` network for internal communication:
 
 ```
-jenkins-master-test (port 8080, 50000)
+jenkins-master (port 8080, 50000)
     ↓
-jenkins-agent-dotnet-test
+jenkins-agent-dotnet
     ↓ (DooD via /var/run/docker.sock)
     └── Spawns test containers (e.g., todoapp-postgres-test)
 ```
@@ -134,8 +184,8 @@ group_add:
 **To find your GID:** `stat -c '%g' /var/run/docker.sock`
 
 **Critical**: If Docker commands fail with permission errors, verify:
-1. The GID in `agents/dotnet/docker-compose-test-dotnet.yml` matches your host
-2. Check actual groups: `docker exec jenkins-agent-dotnet-test cat /proc/1/status | grep Groups`
+1. The GID in `agents/dotnet/docker-compose-dotnet.yml` matches your host
+2. Check actual groups: `docker exec jenkins-agent-dotnet cat /proc/1/status | grep Groups`
 
 ## E2E Testing Architecture
 
@@ -155,7 +205,7 @@ E2E tests run entirely inside the Jenkins agent container:
 ## Important Configuration Files
 
 ### Agent Configuration
-- `agents/dotnet/docker-compose-test-dotnet.yml` - .NET agent deployment config
+- `agents/dotnet/docker-compose-dotnet.yml` - .NET agent deployment config
   - **JENKINS_SECRET**: Copy from Jenkins UI after creating agent node
   - **NO_PROXY**: Must include `sonarqube` to avoid proxy errors
   - **group_add**: Docker socket GID (system-specific)
@@ -179,15 +229,15 @@ E2E tests run entirely inside the Jenkins agent container:
 
 **Root Cause**: Agent's HTTP proxy is intercepting requests to internal `sonarqube` hostname
 
-**Solution**: Add `sonarqube` and `sonarqube-db` to `NO_PROXY` in `agents/dotnet/docker-compose-test-dotnet.yml`:
+**Solution**: Add `sonarqube` and `sonarqube-db` to `NO_PROXY` in `agents/dotnet/docker-compose-dotnet.yml`:
 
 ```yaml
 environment:
-  NO_PROXY: "localhost,127.0.0.1,jenkins-master-test,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
-  no_proxy: "localhost,127.0.0.1,jenkins-master-test,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
+  NO_PROXY: "localhost,127.0.0.1,jenkins-master,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
+  no_proxy: "localhost,127.0.0.1,jenkins-master,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
 ```
 
-**Verify**: `docker exec jenkins-agent-dotnet-test curl -v http://sonarqube:9000/api/server/version`
+**Verify**: `docker exec jenkins-agent-dotnet curl -v http://sonarqube:9000/api/server/version`
 
 ### 2. Docker Permission Denied
 
@@ -242,7 +292,7 @@ done
 
 **Explanation**: This is NOT an error. `group_add` only adds the GID to the process, not to `/etc/group`. This is normal Docker behavior.
 
-**Verify it works**: `docker exec jenkins-agent-dotnet-test docker ps` - if this succeeds, permissions are correct.
+**Verify it works**: `docker exec jenkins-agent-dotnet docker ps` - if this succeeds, permissions are correct.
 
 **To suppress warning**: Add `RUN groupadd -g 1001 docker` to Dockerfile and rebuild.
 
@@ -254,7 +304,7 @@ done
 2. Install language-specific SDK/runtime
 3. Configure package manager (npm, Maven, etc.) for internal Nexus if needed
 4. Add to `agents/<language>/` directory
-5. Create corresponding `docker-compose-test-<language>.yml`
+5. Create corresponding `docker-compose-<language>.yml`
 6. Update README.md with build instructions
 
 ### Modifying Pipelines
@@ -262,7 +312,7 @@ done
 - E2E test pipelines are complex - always test DNS waits and environment variable passing
 - Use `agent { label 'dotnet' }` to target specific agent types
 - For debugging, add `sh 'env | sort'` stage to see all environment variables
-- Check agent logs: `docker exec jenkins-agent-dotnet-test cat /proc/1/status`
+- Check agent logs: `docker exec jenkins-agent-dotnet cat /proc/1/status`
 
 ### Updating Jenkins Master
 
@@ -272,11 +322,11 @@ cd master
 vim plugins.txt
 
 # Rebuild image
-docker compose -f docker-compose-test.yml down
+docker compose down
 ./build.sh
 
 # Restart with new image
-docker compose -f docker-compose-test.yml up -d
+docker compose up -d
 ```
 
 ## Project Structure
@@ -285,7 +335,7 @@ docker compose -f docker-compose-test.yml up -d
 JenkinsDeploy/
 ├── master/                          # Jenkins Master container
 │   ├── Dockerfile                   # Master image with 80+ plugins
-│   ├── docker-compose-test.yml      # Master deployment
+│   ├── docker-compose.yml           # Master deployment
 │   ├── plugins.txt                  # Plugin list
 │   └── build.sh/import.sh           # Build/import scripts for offline
 │
@@ -296,7 +346,7 @@ JenkinsDeploy/
 │   │   └── entrypoint-*.sh
 │   ├── dotnet/
 │   │   ├── Dockerfile.dotnet             # Layer 3: + .NET SDK
-│   │   ├── docker-compose-test-dotnet.yml
+│   │   ├── docker-compose-dotnet.yml
 │   │   └── entrypoint-dotnet.sh
 │   └── doc/
 │       ├── DOCKER_SOCKET_CONFIG.md       # DooD permission guide

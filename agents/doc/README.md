@@ -51,7 +51,7 @@ agents/
 ├── dotnet/                    # .NET Agent 镜像
 │   ├── Dockerfile.dotnet          # .NET Agent 镜像定义
 │   ├── entrypoint-dotnet.sh       # .NET Agent 入口脚本
-│   └── docker-compose-test-dotnet.yml  # .NET Agent 部署配置
+│   └── docker-compose-dotnet.yml  # .NET Agent 部署配置
 └── doc/                       # 文档目录
     ├── DOCKER_SOCKET_CONFIG.md    # Docker Socket 权限配置
     └── README.md                  # 本文件

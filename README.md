@@ -122,7 +122,7 @@ docker build -f agents/dotnet/Dockerfile.dotnet -t jenkins-agent-dotnet:2.0 agen
 
 # 4. 启动 .NET Agent
 cd agents/dotnet
-docker compose -f docker-compose-test-dotnet.yml up -d
+docker compose -f docker-compose-dotnet.yml up -d
 
 # 5. 访问 Jenkins
 open http://localhost:8080
@@ -137,11 +137,11 @@ open http://localhost:8080
 docker ps | grep jenkins
 
 # 应该看到:
-# jenkins-master-test       Up (healthy)
-# jenkins-agent-dotnet-test Up
+# jenkins-master       Up (healthy)
+# jenkins-agent-dotnet Up
 
 # 检查 Agent 连接状态
-docker logs jenkins-agent-dotnet-test | grep "Connected"
+docker logs jenkins-agent-dotnet | grep "Connected"
 ```
 
 ---
@@ -199,7 +199,7 @@ docker build -f agents/dotnet/Dockerfile.dotnet -t jenkins-agent-dotnet:2.0 agen
 stat -c '%g' /var/run/docker.sock
 # 输出示例: 1001
 
-# 2. 更新 docker-compose-test-dotnet.yml
+# 2. 更新 docker-compose-dotnet.yml
 # 找到 group_add 配置，确保 GID 匹配:
 group_add:
   - "1001"  # 替换为你的 GID
@@ -211,11 +211,11 @@ group_add:
 
 ```bash
 cd agents/dotnet
-docker compose -f docker-compose-test-dotnet.yml up -d
+docker compose -f docker-compose-dotnet.yml up -d
 ```
 
 **Agent 配置说明**:
-- **JENKINS_URL**: `http://jenkins-master-test:8080`
+- **JENKINS_URL**: `http://jenkins-master:8080`
 - **JENKINS_AGENT_NAME**: `agent-dotnet-8`
 - **JENKINS_SECRET**: 从 Jenkins Web UI 复制
   - 路径: Jenkins > 系统管理 > 节点管理 > agent-dotnet-8 > Secret
@@ -231,11 +231,11 @@ docker compose -f docker-compose-test-dotnet.yml up -d
    - **远程工作目录**: `/home/jenkins/agent`
    - **启动方式**: **通过 Java Web Start 代理程序启动**
    - **标签**: `dotnet docker e2e-test`
-5. 保存后，复制 **Secret** 到 `docker-compose-test-dotnet.yml`
+5. 保存后，复制 **Secret** 到 `docker-compose-dotnet.yml`
 6. 重启 Agent 容器:
    ```bash
    cd agents/dotnet
-   docker compose -f docker-compose-test-dotnet.yml restart
+   docker compose -f docker-compose-dotnet.yml restart
    ```
 
 ---
@@ -252,7 +252,7 @@ docker compose -f docker-compose-test-dotnet.yml up -d
 
 ### 资源配置
 
-**生产环境推荐配置** (`docker-compose-test-dotnet.yml`):
+**生产环境推荐配置** (`docker-compose-dotnet.yml`):
 
 ```yaml
 deploy:
@@ -415,7 +415,7 @@ permission denied while trying to connect to Docker socket
    stat -c '%g' /var/run/docker.sock
    ```
 
-2. 更新 `docker-compose-test-dotnet.yml`:
+2. 更新 `docker-compose-dotnet.yml`:
    ```yaml
    group_add:
      - "YOUR_GID_HERE"  # 替换为步骤 1 的结果
@@ -423,13 +423,13 @@ permission denied while trying to connect to Docker socket
 
 3. 重启容器:
    ```bash
-   docker compose -f docker-compose-test-dotnet.yml restart
+   docker compose -f docker-compose-dotnet.yml restart
    ```
 
 **验证方法**:
 ```bash
 # 正确的验证方式（不是 groups 命令）
-docker exec jenkins-agent-dotnet-test cat /proc/1/status | grep Groups
+docker exec jenkins-agent-dotnet cat /proc/1/status | grep Groups
 # 应该输出: Groups: 1000 1001
 ```
 
@@ -448,7 +448,7 @@ jenkins groups: cannot find name for group ID 1001
 
 **验证 Docker 功能**:
 ```bash
-docker exec jenkins-agent-dotnet-test docker ps
+docker exec jenkins-agent-dotnet docker ps
 # 如果能正常输出，说明权限配置正确
 ```
 
@@ -519,12 +519,12 @@ done
 
 1. 检查网络连通性:
    ```bash
-   docker exec jenkins-agent-dotnet-test ping jenkins-master-test
+   docker exec jenkins-agent-dotnet ping jenkins-master
    ```
 
 2. 检查 JENKINS_SECRET:
    ```bash
-   docker exec jenkins-agent-dotnet-test env | grep JENKINS_SECRET
+   docker exec jenkins-agent-dotnet env | grep JENKINS_SECRET
    ```
 
 3. 检查 Master 容器状态:
@@ -535,7 +535,7 @@ done
 
 4. 查看 Master 日志:
    ```bash
-   docker logs jenkins-master-test | grep agent
+   docker logs jenkins-master | grep agent
    ```
 
 ---
@@ -557,10 +557,10 @@ Jenkins Agent 配置了 HTTP 代理（如 `HTTP_PROXY=http://host.docker.interna
 
 ```bash
 # 1. 检查 Agent 是否使用代理
-docker exec jenkins-agent-dotnet-test env | grep -i proxy
+docker exec jenkins-agent-dotnet env | grep -i proxy
 
 # 2. 测试 SonarQube 连接（带详细输出）
-docker exec jenkins-agent-dotnet-test curl -v http://sonarqube:9000/api/server/version
+docker exec jenkins-agent-dotnet curl -v http://sonarqube:9000/api/server/version
 
 # 如果看到以下输出，说明请求被发送到代理了：
 # * Uses proxy env variable http_proxy == 'http://...'
@@ -569,13 +569,13 @@ docker exec jenkins-agent-dotnet-test curl -v http://sonarqube:9000/api/server/v
 
 **解决方案**:
 
-1. **编辑 Agent 配置文件**（`agents/dotnet/docker-compose-test-dotnet.yml`）:
+1. **编辑 Agent 配置文件**（`agents/dotnet/docker-compose-dotnet.yml`）:
 
    ```yaml
    environment:
      # 代理设置：排除内部 Docker 网络和 SonarQube
-     NO_PROXY: "localhost,127.0.0.1,jenkins-master-test,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
-     no_proxy: "localhost,127.0.0.1,jenkins-master-test,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
+     NO_PROXY: "localhost,127.0.0.1,jenkins-master,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
+     no_proxy: "localhost,127.0.0.1,jenkins-master,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
    ```
 
    **必须添加**：
@@ -587,20 +587,20 @@ docker exec jenkins-agent-dotnet-test curl -v http://sonarqube:9000/api/server/v
 
    ```bash
    cd agents/dotnet
-   docker compose -f docker-compose-test-dotnet.yml restart
+   docker compose -f docker-compose-dotnet.yml restart
    ```
 
 3. **验证修复**:
 
    ```bash
    # 应该看到 "no_proxy" 包含 sonarqube
-   docker exec jenkins-agent-dotnet-test env | grep NO_PROXY
+   docker exec jenkins-agent-dotnet env | grep NO_PROXY
 
    # 应该看到直接连接（不经过代理），返回 HTTP/1.1 200
-   docker exec jenkins-agent-dotnet-test curl -v http://sonarqube:9000/api/server/version
+   docker exec jenkins-agent-dotnet curl -v http://sonarqube:9000/api/server/version
 
    # 应该返回 SonarQube 版本号（如 25.11.0.114957）
-   docker exec jenkins-agent-dotnet-test curl -s http://sonarqube:9000/api/server/version
+   docker exec jenkins-agent-dotnet curl -s http://sonarqube:9000/api/server/version
    ```
 
 **预防措施**:
@@ -647,7 +647,7 @@ docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"
 **Jenkins Master 数据**:
 ```bash
 # 备份 Jenkins 配置和作业
-docker exec jenkins-master-test tar czf - /var/jenkins_home > jenkins-backup-$(date +%Y%m%d).tar.gz
+docker exec jenkins-master tar czf - /var/jenkins_home > jenkins-backup-$(date +%Y%m%d).tar.gz
 
 # 恢复备份
 docker compose -f master/docker-compose.yml down
@@ -718,19 +718,19 @@ volumes:
 docker ps --format "table {{.Names}}\t{{.Status}}"
 
 # 查看实时日志
-docker logs -f jenkins-master-test
+docker logs -f jenkins-master
 ```
 
 **资源使用监控**:
 ```bash
 # 查看容器资源使用
-docker stats jenkins-master-test jenkins-agent-dotnet-test
+docker stats jenkins-master jenkins-agent-dotnet
 ```
 
 **日志收集**:
 ```bash
 # 导出最近 1000 行日志
-docker logs --tail 1000 jenkins-master-test > jenkins-master.log
+docker logs --tail 1000 jenkins-master > jenkins-master.log
 ```
 
 ---
@@ -754,7 +754,7 @@ JenkinsDeploy/
 │   ├── dotnet/                      # .NET Agent 镜像
 │   │   ├── Dockerfile.dotnet            # .NET Agent 镜像 (含 Python)
 │   │   ├── entrypoint-dotnet.sh         # .NET Agent 入口脚本
-│   │   └── docker-compose-test-dotnet.yml  # .NET Agent 部署配置
+│   │   └── docker-compose-dotnet.yml  # .NET Agent 部署配置
 │   └── doc/                         # 文档目录
 │       ├── DOCKER_SOCKET_CONFIG.md      # Docker Socket 权限配置
 │       └── README.md                    # Agent 文档

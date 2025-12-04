@@ -99,7 +99,7 @@ Jenkins 的 `waitForQualityGate` 步骤需要等待 SonarQube 完成分析并返
 3. 点击 **Create**
 4. 填写配置：
    - **Name**: `Jenkins` 或 `Jenkins-Webhook`
-   - **URL**: `http://jenkins-master-test:8080/sonarqube-webhook/`
+   - **URL**: `http://jenkins-master:8080/sonarqube-webhook/`
      - ⚠️ 注意最后的斜杠 `/` 不能省略
      - 如果 Jenkins 使用其他容器名，相应修改主机名
    - **Secret**: 留空（可选，用于验证请求来源）
@@ -112,7 +112,7 @@ Jenkins 的 `waitForQualityGate` 步骤需要等待 SonarQube 完成分析并返
 docker exec sonarqube env | grep -i proxy
 
 # 2. 测试从 SonarQube 到 Jenkins webhook 的连通性（应返回 405）
-docker exec sonarqube curl -s -o /dev/null -w "%{http_code}" http://jenkins-master-test:8080/sonarqube-webhook/
+docker exec sonarqube curl -s -o /dev/null -w "%{http_code}" http://jenkins-master:8080/sonarqube-webhook/
 # 预期结果: 405 (Method Not Allowed - 正常，因为 endpoint 只接受 POST)
 
 # 3. 运行 Pipeline，查看质量门阶段是否快速完成（几秒内）
@@ -195,8 +195,8 @@ Jenkins Agent 配置了 HTTP 代理（如 `HTTP_PROXY=http://host.docker.interna
 ```yaml
 environment:
   # 代理设置：排除内部 Docker 网络和 SonarQube
-  NO_PROXY: "localhost,127.0.0.1,jenkins-master-test,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
-  no_proxy: "localhost,127.0.0.1,jenkins-master-test,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
+  NO_PROXY: "localhost,127.0.0.1,jenkins-master,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
+  no_proxy: "localhost,127.0.0.1,jenkins-master,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
 ```
 
 **必须添加**：
@@ -208,16 +208,16 @@ environment:
 
 ```bash
 # 1. 重启 Agent
-docker compose -f docker-compose-test-dotnet.yml restart
+docker compose -f docker-compose-dotnet.yml restart
 
 # 2. 检查代理配置
-docker exec jenkins-agent-dotnet-test env | grep -i proxy
+docker exec jenkins-agent-dotnet env | grep -i proxy
 
 # 3. 测试连接（应该看到 "no_proxy" 包含 sonarqube）
-docker exec jenkins-agent-dotnet-test curl -v http://sonarqube:9000/api/server/version
+docker exec jenkins-agent-dotnet curl -v http://sonarqube:9000/api/server/version
 
 # 4. 应该返回 HTTP/1.1 200 和版本号（如 25.11.0.114957）
-docker exec jenkins-agent-dotnet-test curl -s http://sonarqube:9000/api/server/version
+docker exec jenkins-agent-dotnet curl -s http://sonarqube:9000/api/server/version
 ```
 
 **预防措施**：
@@ -261,7 +261,7 @@ docker compose restart sonarqube
 
 ```bash
 # 方案 1: 将 Jenkins Agent 加入 SonarQube 网络
-# 修改 agents/docker-compose-test-dotnet.yml
+# 修改 agents/docker-compose-dotnet.yml
 networks:
   default:
     name: jenkins-network
@@ -327,8 +327,8 @@ dotnet sonarscanner --version
 
 SonarQube 容器使用了 HTTP 代理，但 `NO_PROXY` 列表中**没有包含 Jenkins 主机名**，导致：
 1. SonarQube 分析完成后尝试通过 webhook 通知 Jenkins
-2. HTTP 请求被代理拦截（`http://jenkins-master-test:8080/sonarqube-webhook/`）
-3. 代理无法解析 Docker 内部的 `jenkins-master-test` 域名
+2. HTTP 请求被代理拦截（`http://jenkins-master:8080/sonarqube-webhook/`）
+3. 代理无法解析 Docker 内部的 `jenkins-master` 域名
 4. 返回 **502 Bad Gateway**，webhook 发送失败
 5. Jenkins 无法收到通知，只能轮询等待，最终超时
 
@@ -337,10 +337,10 @@ SonarQube 容器使用了 HTTP 代理，但 `NO_PROXY` 列表中**没有包含 J
 ```bash
 # 1. 检查 SonarQube 是否使用了代理
 docker exec sonarqube env | grep -i proxy
-# 如果输出包含 HTTP_PROXY 且 NO_PROXY 不包含 jenkins-master-test，即存在问题
+# 如果输出包含 HTTP_PROXY 且 NO_PROXY 不包含 jenkins-master，即存在问题
 
 # 2. 测试从 SonarQube 到 Jenkins webhook 的连通性
-docker exec sonarqube curl -v http://jenkins-master-test:8080/sonarqube-webhook/ 2>&1 | head -20
+docker exec sonarqube curl -v http://jenkins-master:8080/sonarqube-webhook/ 2>&1 | head -20
 # 正常：应看到 "HTTP/1.1 405" (Method Not Allowed - 正常，只接受 POST)
 # 异常：看到 "Uses proxy" 和 "HTTP/1.1 502" (Bad Gateway - 代理拦截)
 ```
@@ -362,12 +362,12 @@ services:
       SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: 'true'
 
       # 🔧 添加以下配置 - 允许直接访问内部 Jenkins 服务
-      NO_PROXY: "localhost,127.0.0.1,jenkins-master-test,jenkins,sonarqube-db,172.19.0.0/16,172.20.0.0/16"
-      no_proxy: "localhost,127.0.0.1,jenkins-master-test,jenkins,sonarqube-db,172.19.0.0/16,172.20.0.0/16"
+      NO_PROXY: "localhost,127.0.0.1,jenkins-master,jenkins,sonarqube-db,172.19.0.0/16,172.20.0.0/16"
+      no_proxy: "localhost,127.0.0.1,jenkins-master,jenkins,sonarqube-db,172.19.0.0/16,172.20.0.0/16"
 ```
 
 **必须包含**：
-- `jenkins-master-test` - Jenkins Master 容器主机名（根据实际名称调整）
+- `jenkins-master` - Jenkins Master 容器主机名（根据实际名称调整）
 - `jenkins` - Jenkins 的别名（如果有）
 - `172.19.0.0/16`, `172.20.0.0/16` - Docker 网络 CIDR（根据实际网络调整）
 
@@ -402,10 +402,10 @@ services:
 ```bash
 # 1. 确认 NO_PROXY 已更新
 docker exec sonarqube env | grep NO_PROXY
-# 应该输出包含 jenkins-master-test
+# 应该输出包含 jenkins-master
 
 # 2. 测试连接（应返回 405 而不是 502）
-docker exec sonarqube curl -s -o /dev/null -w "%{http_code}" http://jenkins-master-test:8080/sonarqube-webhook/
+docker exec sonarqube curl -s -o /dev/null -w "%{http_code}" http://jenkins-master:8080/sonarqube-webhook/
 # 预期输出: 405
 
 # 3. 重新运行 Jenkins Pipeline
@@ -417,7 +417,7 @@ docker exec sonarqube curl -s -o /dev/null -w "%{http_code}" http://jenkins-mast
 - 在配置代理的环境中，务必将所有内部服务添加到 `NO_PROXY`
 - 建议的 `NO_PROXY` 模板：
   ```
-  localhost,127.0.0.1,*.local,jenkins,jenkins-master-test,sonarqube,sonarqube-db,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+  localhost,127.0.0.1,*.local,jenkins,jenkins-master,sonarqube,sonarqube-db,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
   ```
 - 使用 `docker network inspect <network-name>` 查看实际的 CIDR 并添加到 NO_PROXY
 

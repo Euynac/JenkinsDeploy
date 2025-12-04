@@ -1,7 +1,7 @@
 services:
   jenkins:
     image: jenkins-master-offline:1.0
-    container_name: jenkins-master-test
+    container_name: jenkins-master
     restart: unless-stopped
 
     # 端口映射
@@ -11,7 +11,7 @@ services:
 
     # 使用命名卷（避免WSL文件系统问题）
     volumes:
-      - jenkins_home_test:/var/jenkins_home
+      - jenkins_home:/var/jenkins_home
       - /etc/localtime:/etc/localtime:ro
 
     # 环境变量
@@ -51,6 +51,6 @@ networks:
 
 # 数据卷定义
 volumes:
-  jenkins_home_test:
-    name: jenkinsdeploy_jenkins_home_test  # 使用已有的 volume，保留所有配置
+  jenkins_home:
+    name: jenkinsdeploy_jenkins_home  # Jenkins 主目录持久化存储
     external: true

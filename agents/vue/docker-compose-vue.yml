@@ -1,13 +1,13 @@
 services:
-  agent-vue-test:
+  agent-vue:
     image: jenkins-agent-vue:1.0
-    container_name: jenkins-agent-vue-test
+    container_name: jenkins-agent-vue
     restart: unless-stopped
 
     environment:
       # Jenkins Master 配置
-      JENKINS_URL: "http://jenkins-master-test:8080"
-      JENKINS_AGENT_NAME: "agent-vue"
+      JENKINS_URL: "http://jenkins-master:8080"
+      JENKINS_AGENT_NAME: "agent-vue-1"
 
       # 重要：需要在 Jenkins Web UI 中创建此 Agent 节点后，复制 Secret 填入这里
       # 步骤：Jenkins > 系统管理 > 节点管理 > 新建节点
@@ -21,19 +21,27 @@ services:
       NPM_CONFIG_LOGLEVEL: "info"
 
       # 代理设置：排除内部 Docker 网络和 SonarQube
-      NO_PROXY: "localhost,127.0.0.1,jenkins-master-test,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
-      no_proxy: "localhost,127.0.0.1,jenkins-master-test,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
+      NO_PROXY: "localhost,127.0.0.1,jenkins-master,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
+      no_proxy: "localhost,127.0.0.1,jenkins-master,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
 
     volumes:
       # 工作目录持久化
-      - jenkins-agent-vue-test-workspace:/home/jenkins/agent
+      - jenkins-agent-vue-workspace:/home/jenkins/agent
 
-      # npm 缓存
-      - jenkins-agent-vue-test-npm:/home/jenkins/.npm
-      - jenkins-agent-vue-test-cache:/home/jenkins/.cache
+      # npm 缓存（方案1：主机目录挂载 - 推荐，支持多 agent 共享）
+      # 首次启动前需在宿主机执行：
+      # mkdir -p /data/jenkins-cache/npm-cache /data/jenkins-cache/node-cache
+      # chown -R 1000:1000 /data/jenkins-cache
+      - /data/jenkins-cache/npm-cache:/home/jenkins/.npm
+      - /data/jenkins-cache/node-cache:/home/jenkins/.cache
 
-      # 挂载测试项目（老师提供的项目）
-      - ../../examples:/test-projects:ro
+      # npm 缓存（方案2：Docker Volume - 备选，每个 agent 独立缓存）
+      # 如不想使用主机目录，可改用下面的配置：
+      # - jenkins-agent-vue-npm:/home/jenkins/.npm
+      # - jenkins-agent-vue-cache:/home/jenkins/.cache
+
+      # 挂载示例项目
+      - ../../examples:/examples:ro
 
       # Docker-outside-of-Docker: 挂载宿主机 Docker socket
       - /var/run/docker.sock:/var/run/docker.sock
@@ -63,12 +71,15 @@ services:
       - "language=vue"
 
 volumes:
-  jenkins-agent-vue-test-workspace:
+  jenkins-agent-vue-workspace:
     driver: local
-  jenkins-agent-vue-test-npm:
-    driver: local
-  jenkins-agent-vue-test-cache:
-    driver: local
+
+  # 注意：当前配置使用主机目录挂载（/data/jenkins-cache/*）
+  # 如需使用 Docker Volume 方案，请取消下面的注释并修改上方 volumes 配置
+  # jenkins-agent-vue-npm:
+  #   driver: local
+  # jenkins-agent-vue-cache:
+  #   driver: local
 
 networks:
   jenkinsdeploy_default:

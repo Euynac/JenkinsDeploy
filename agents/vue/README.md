@@ -20,7 +20,7 @@
 
 ```bash
 # 1. 检查 Jenkins Master 是否运行
-docker ps | grep jenkins-master-test
+docker ps | grep jenkins-master
 
 # 2. 检查 SonarQube 是否运行（用于代码质量分析）
 docker ps | grep sonarqube
@@ -78,7 +78,7 @@ docker images | grep jenkins-agent
    - **Launch method**: Launch agent by connecting it to the controller
 5. 保存后，在节点页面复制 **Secret** 值
 
-编辑 `agents/vue/docker-compose-test-vue.yml`，替换 Secret：
+编辑 `agents/vue/docker-compose-vue.yml`，替换 Secret：
 
 ```yaml
 environment:
@@ -96,10 +96,10 @@ group_add:
 
 ```bash
 cd agents/vue
-docker compose -f docker-compose-test-vue.yml up -d
+docker compose -f docker-compose-vue.yml up -d
 
 # 查看日志
-docker logs -f jenkins-agent-vue-test
+docker logs -f jenkins-agent-vue
 
 # 预期日志:
 # INFO: Connected
@@ -153,13 +153,13 @@ docker logs -f jenkins-agent-vue-test
 **解决**:
 ```bash
 # 检查网络连通性
-docker exec jenkins-agent-vue-test ping jenkins-master-test
+docker exec jenkins-agent-vue ping jenkins-master
 
 # 检查 Secret 是否正确
-docker exec jenkins-agent-vue-test env | grep JENKINS_SECRET
+docker exec jenkins-agent-vue env | grep JENKINS_SECRET
 
 # 重启 Agent
-docker compose -f docker-compose-test-vue.yml restart
+docker compose -f docker-compose-vue.yml restart
 ```
 
 ### 2. SonarQube 连接失败 (502 Bad Gateway)
@@ -172,7 +172,7 @@ docker compose -f docker-compose-test-vue.yml restart
 
 ```yaml
 environment:
-  NO_PROXY: "localhost,127.0.0.1,jenkins-master-test,sonarqube,sonarqube-db,..."
+  NO_PROXY: "localhost,127.0.0.1,jenkins-master,sonarqube,sonarqube-db,..."
 ```
 
 ### 3. npm install 很慢
@@ -189,11 +189,11 @@ RUN npm config set registry https://registry.npmmirror.com
 
 **解决方案 2**: 使用 npm 缓存卷
 
-`docker-compose-test-vue.yml` 已配置缓存卷：
+`docker-compose-vue.yml` 已配置缓存卷：
 
 ```yaml
 volumes:
-  - jenkins-agent-vue-test-npm:/home/jenkins/.npm
+  - jenkins-agent-vue-npm:/home/jenkins/.npm
 ```
 
 ### 4. 测试失败但想继续构建
@@ -215,7 +215,7 @@ error("测试失败: 退出码 ${testExitCode}")
 ```
 agents/vue/
 ├── Dockerfile.vue                    # Vue agent 镜像定义
-├── docker-compose-test-vue.yml       # Agent 部署配置
+├── docker-compose-vue.yml       # Agent 部署配置
 └── README.md                         # 本文档
 
 examples/
@@ -251,7 +251,7 @@ docker build -f agents/vue/Dockerfile.vue -t jenkins-agent-vue:1.0 agents/vue --
 
 ## 资源配置
 
-默认资源限制（可在 `docker-compose-test-vue.yml` 中调整）：
+默认资源限制（可在 `docker-compose-vue.yml` 中调整）：
 
 ```yaml
 deploy:

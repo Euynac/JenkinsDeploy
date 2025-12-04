@@ -115,7 +115,7 @@ JenkinsDeploy/
 │   ├── dotnet/                      # .NET Agent
 │   │   ├── Dockerfile.dotnet            # .NET Agent 镜像
 │   │   ├── entrypoint-dotnet.sh         # .NET 入口脚本
-│   │   └── docker-compose-test-dotnet.yml  # 部署配置
+│   │   └── docker-compose-dotnet.yml  # 部署配置
 │   └── doc/                         # 文档
 │       ├── DOCKER_SOCKET_CONFIG.md
 │       └── README.md

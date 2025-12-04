@@ -105,18 +105,18 @@ examples/
 
 ```bash
 # 检查 Agent 连接
-docker logs jenkins-agent-dotnet-test --tail=5
+docker logs jenkins-agent-dotnet --tail=5
 
 # 检查挂载的测试项目
-docker exec jenkins-agent-dotnet-test ls -la /test-projects/
+docker exec jenkins-agent-dotnet ls -la /test-projects/
 
 # 检查 .NET SDK
-docker exec jenkins-agent-dotnet-test dotnet --version
+docker exec jenkins-agent-dotnet dotnet --version
 ```
 
 ### Docker Compose 配置
 
-文件: `/mnt/d/Repositories/JenkinsDeploy/docker-compose-test-dotnet.yml`
+文件: `/mnt/d/Repositories/JenkinsDeploy/docker-compose-dotnet.yml`
 
 **关键配置**:
 - Agent 名称: `agent-dotnet-8`
@@ -186,10 +186,10 @@ todoapp-backend-api-main/
 docker ps | grep jenkins-agent
 
 # 查看日志
-docker logs jenkins-agent-dotnet-test
+docker logs jenkins-agent-dotnet
 
 # 重启容器
-docker-compose -f docker-compose-test-dotnet.yml restart
+docker-compose -f docker-compose-dotnet.yml restart
 ```
 
 ### 2. 找不到 dotnet 标签

@@ -97,7 +97,7 @@ java -version
 
 ```bash
 # 进入 Master 容器
-docker exec -it jenkins-master-test bash
+docker exec -it jenkins-master bash
 
 # 切换到 jenkins 用户
 su - jenkins

@@ -1,13 +1,13 @@
 services:
-  agent-dotnet-test:
+  agent-dotnet:
     image: jenkins-agent-dotnet:2.0
-    container_name: jenkins-agent-dotnet-test
+    container_name: jenkins-agent-dotnet
     restart: unless-stopped
 
     environment:
       # Jenkins Master 配置
-      JENKINS_URL: "http://jenkins-master-test:8080"
-      JENKINS_AGENT_NAME: "agent-dotnet-8"
+      JENKINS_URL: "http://jenkins-master:8080"
+      JENKINS_AGENT_NAME: "agent-dotnet-1"
 
       # 重要：需要在 Jenkins Web UI 中创建此 Agent 节点后，复制 Secret 填入这里
       # 步骤：Jenkins > 系统管理 > 节点管理 > 新建节点
@@ -21,18 +21,27 @@ services:
       DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
 
       # 代理设置：排除内部 Docker 网络和 SonarQube
-      NO_PROXY: "localhost,127.0.0.1,jenkins-master-test,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
-      no_proxy: "localhost,127.0.0.1,jenkins-master-test,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
+      NO_PROXY: "localhost,127.0.0.1,jenkins-master,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
+      no_proxy: "localhost,127.0.0.1,jenkins-master,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
 
     volumes:
       # 工作目录持久化
-      - jenkins-agent-dotnet-test-workspace:/home/jenkins/agent
+      - jenkins-agent-dotnet-workspace:/home/jenkins/agent
 
-      # NuGet 缓存
-      - jenkins-agent-dotnet-test-nuget:/home/jenkins/.nuget
+      # NuGet 缓存（方案1：主机目录挂载 - 推荐，支持多 agent 共享）
+      # 首次启动前需在宿主机执行：
+      # mkdir -p /data/jenkins-cache/nuget-packages /data/jenkins-cache/dotnet-tools
+      # chown -R 1000:1000 /data/jenkins-cache
+      - /data/jenkins-cache/nuget-packages:/home/jenkins/.nuget/packages
+      - /data/jenkins-cache/dotnet-tools:/home/jenkins/.dotnet/tools
 
-      # 挂载测试项目（老师提供的项目）
-      - ../examples:/test-projects:ro
+      # NuGet 缓存（方案2：Docker Volume - 备选，每个 agent 独立缓存）
+      # 如不想使用主机目录，可改用下面的配置：
+      # - jenkins-agent-dotnet-nuget:/home/jenkins/.nuget/packages
+      # - jenkins-agent-dotnet-tools:/home/jenkins/.dotnet/tools
+
+      # 挂载示例项目
+      - ../../examples:/examples:ro
 
       # Docker-outside-of-Docker: 挂载宿主机 Docker socket
       - /var/run/docker.sock:/var/run/docker.sock
@@ -62,10 +71,15 @@ services:
       - "language=dotnet"
 
 volumes:
-  jenkins-agent-dotnet-test-workspace:
+  jenkins-agent-dotnet-workspace:
     driver: local
-  jenkins-agent-dotnet-test-nuget:
-    driver: local
+
+  # 注意：当前配置使用主机目录挂载（/data/jenkins-cache/*）
+  # 如需使用 Docker Volume 方案，请取消下面的注释并修改上方 volumes 配置
+  # jenkins-agent-dotnet-nuget:
+  #   driver: local
+  # jenkins-agent-dotnet-tools:
+  #   driver: local
 
 networks:
   jenkinsdeploy_default:

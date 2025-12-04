@@ -205,7 +205,7 @@ dotnet: command not found
 检查 Agent 容器中的 .NET SDK：
 
 ```bash
-docker exec jenkins-agent-dotnet-test dotnet --version
+docker exec jenkins-agent-dotnet dotnet --version
 ```
 
 如果输出 `8.0.416`，说明 SDK 已安装，可能是路径问题。
@@ -276,7 +276,7 @@ examples/
 ```
 测试日期: _______________
 Agent 名称: agent-dotnet-8
-Agent 容器: jenkins-agent-dotnet-test
+Agent 容器: jenkins-agent-dotnet
 .NET SDK: 8.0.416
 
 ✅ Agent 连接成功

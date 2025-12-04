@@ -18,12 +18,12 @@
 
 **如果你的 Jenkins Agent 使用了 HTTP 代理**，务必确保 `NO_PROXY` 包含 SonarQube 服务，否则会遇到 502 Bad Gateway 错误！
 
-检查 `agents/docker-compose-test-dotnet.yml` 中的代理配置：
+检查 `agents/docker-compose-dotnet.yml` 中的代理配置：
 
 ```yaml
 environment:
-  NO_PROXY: "localhost,127.0.0.1,jenkins-master-test,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
-  no_proxy: "localhost,127.0.0.1,jenkins-master-test,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
+  NO_PROXY: "localhost,127.0.0.1,jenkins-master,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
+  no_proxy: "localhost,127.0.0.1,jenkins-master,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
 ```
 
 **必须包含**：
@@ -103,7 +103,7 @@ squ_1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p
 
 ```bash
 # 从 Jenkins Agent 容器内测试
-docker exec jenkins-agent-dotnet-test curl -I http://sonarqube:9000
+docker exec jenkins-agent-dotnet curl -I http://sonarqube:9000
 
 # 应该返回 HTTP/1.1 200 或 302
 ```
@@ -113,15 +113,15 @@ docker exec jenkins-agent-dotnet-test curl -I http://sonarqube:9000
 ```bash
 # 停止现有 Agent
 cd /mnt/d/Repositories/JenkinsDeploy/agents
-docker compose -f docker-compose-test-dotnet.yml down
+docker compose -f docker-compose-dotnet.yml down
 
 # 启动 Agent（现在会连接到 sonarqube-network）
-docker compose -f docker-compose-test-dotnet.yml up -d
+docker compose -f docker-compose-dotnet.yml up -d
 
 # 验证网络连接
 docker network inspect sonarqube-network
 
-# 应该能看到 jenkins-agent-dotnet-test 容器
+# 应该能看到 jenkins-agent-dotnet 容器
 ```
 
 ### 第 5 步: 运行 Pipeline 测试
@@ -218,36 +218,36 @@ An error occured while querying the server version!
 **诊断步骤**:
 ```bash
 # 1. 检查 Agent 是否使用代理
-docker exec jenkins-agent-dotnet-test env | grep -i proxy
+docker exec jenkins-agent-dotnet env | grep -i proxy
 
 # 2. 测试 SonarQube 连接（注意是否经过代理）
-docker exec jenkins-agent-dotnet-test curl -v http://sonarqube:9000/api/server/version
+docker exec jenkins-agent-dotnet curl -v http://sonarqube:9000/api/server/version
 
 # 如果看到 "Uses proxy env variable http_proxy"，说明请求被发送到代理了
 ```
 
 **解决方案**:
 
-1. 编辑 `agents/docker-compose-test-dotnet.yml`：
+1. 编辑 `agents/docker-compose-dotnet.yml`：
    ```yaml
    environment:
-     NO_PROXY: "localhost,127.0.0.1,jenkins-master-test,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
-     no_proxy: "localhost,127.0.0.1,jenkins-master-test,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
+     NO_PROXY: "localhost,127.0.0.1,jenkins-master,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
+     no_proxy: "localhost,127.0.0.1,jenkins-master,sonarqube,sonarqube-db,172.16.0.0/12,192.168.0.0/16,172.19.0.0/16"
    ```
 
 2. 重启 Agent：
    ```bash
    cd /path/to/agents
-   docker compose -f docker-compose-test-dotnet.yml restart
+   docker compose -f docker-compose-dotnet.yml restart
    ```
 
 3. 验证修复：
    ```bash
    # 应该看到 "no_proxy" 包含 sonarqube，并且直接连接（不经过代理）
-   docker exec jenkins-agent-dotnet-test curl -v http://sonarqube:9000/api/server/version
+   docker exec jenkins-agent-dotnet curl -v http://sonarqube:9000/api/server/version
 
    # 应该返回 HTTP/1.1 200 和版本号
-   docker exec jenkins-agent-dotnet-test curl -s http://sonarqube:9000/api/server/version
+   docker exec jenkins-agent-dotnet curl -s http://sonarqube:9000/api/server/version
    ```
 
 **详细说明**: 参考 `components/sonarqube/README.md` 中的"问题 0"
@@ -267,15 +267,15 @@ docker ps | grep sonarqube
 
 # 2. 验证网络连接
 docker network inspect sonarqube-network
-# 应该能看到 jenkins-agent-dotnet-test 和 sonarqube 都在这个网络中
+# 应该能看到 jenkins-agent-dotnet 和 sonarqube 都在这个网络中
 
 # 3. 从 Agent 容器内测试连接
-docker exec jenkins-agent-dotnet-test curl -I http://sonarqube:9000
+docker exec jenkins-agent-dotnet curl -I http://sonarqube:9000
 
 # 4. 如果网络配置有问题，重启 Agent
 cd /mnt/d/Repositories/JenkinsDeploy/agents
-docker compose -f docker-compose-test-dotnet.yml down
-docker compose -f docker-compose-test-dotnet.yml up -d
+docker compose -f docker-compose-dotnet.yml down
+docker compose -f docker-compose-dotnet.yml up -d
 ```
 
 ### 问题 2: Token 认证失败
@@ -305,7 +305,7 @@ docker compose -f docker-compose-test-dotnet.yml up -d
 # "找到 OpenCover 覆盖率文件"
 
 # 2. 验证文件存在
-docker exec jenkins-agent-dotnet-test ls -lh /home/jenkins/agent/workspace/*/test-results/coverage/
+docker exec jenkins-agent-dotnet ls -lh /home/jenkins/agent/workspace/*/test-results/coverage/
 
 # 3. 确保 Unit Test 阶段正确配置了覆盖率收集
 # 参考 quick-test-pipeline.groovy 第 132-140 行
@@ -320,7 +320,7 @@ docker exec jenkins-agent-dotnet-test ls -lh /home/jenkins/agent/workspace/*/tes
 **解决方案**:
 ```bash
 # 1. 进入 Agent 容器
-docker exec -it jenkins-agent-dotnet-test bash
+docker exec -it jenkins-agent-dotnet bash
 
 # 2. 手动安装工具
 dotnet tool install --global dotnet-sonarscanner
